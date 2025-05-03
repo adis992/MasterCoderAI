@@ -1,0 +1,18 @@
+# Ignorisi Python cache fajlove
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+# Ignorisi virtualne env
+venv/
+.env/
+# Ignorisi podatke i modele
+podaci/obradeni/
+podaci/sirovi/
+modeli/mlruns/
+modeli/moj-bot/
+# Ignorisi VSCode
+.vscode/
+# Ignorisi OS fajlove
+.DS_Store
+Thumbs.db

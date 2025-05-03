@@ -1,0 +1,9 @@
+models:
+  - name: moj-bot
+    version: 1.0.0
+    path: modeli/moj-bot/moj-bot.pt
+    description: "Trenirani model za MasterCoderAI."
+  - name: bert-base-uncased
+    version: 4.35.0
+    path: transformers/bert-base-uncased
+    description: "Pretrenirani transformers model."

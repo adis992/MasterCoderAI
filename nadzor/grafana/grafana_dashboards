@@ -1,0 +1,17 @@
+{
+  "dashboard": {
+    "title": "MasterCoderAI Metrics",
+    "panels": [
+      {
+        "type": "graph",
+        "title": "API Latency",
+        "targets": [
+          {
+            "expr": "http_request_duration_seconds",
+            "legendFormat": "{{method}} {{status}}"
+          }
+        ]
+      }
+    ]
+  }
+}
