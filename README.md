@@ -339,7 +339,7 @@ For questions or suggestions, contact the author on GitHub: [your-username](http
 
 # MasterCoderAI
 
-MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, automatizaciju i još mnogo toga.
+MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, automatizaciju i još mnogo toga. Projekt je organiziran u modularnu strukturu kako bi se olakšalo razumijevanje i proširenje.
 
 ## Struktura projekta
 
@@ -359,7 +359,7 @@ MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, aut
 
 1. Klonirajte repozitorij:
    ```bash
-   git clone https://github.com/korisnik/MasterCoderAI.git
+   git clone https://github.com/adis922/MasterCoderAI.git
    cd MasterCoderAI
    ```
 2. Instalirajte zavisnosti:
@@ -380,3 +380,7 @@ MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, aut
   ```bash
   pytest tests/
   ```
+
+## Autor
+
+Ovaj projekt je kreirao i održava [adis922](https://github.com/adis922).
