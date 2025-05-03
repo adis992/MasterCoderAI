@@ -1,16 +1,8 @@
-# eksperimenti / Experiments
+# Eksperimenti
 
-Ovaj folder sadrži kod za testiranje i optimizaciju modela.
+Ovaj direktorij sadrži skripte i resurse za eksperimente s modelima.
 
-## Broj fajlova: 0 (samo podfolderi)
-- Podfolderi: `optimizacija_hiperparametara`, `studije_analize`
+## Sadržaj
 
-## Opis podfoldera
-
-1. **optimizacija_hiperparametara**  
-   - **Što radi?** Optimizacija hiperparametara modela (npr. s Optuna-om).  
-   - **Primjer upotrebe**: Pronalazi najbolje postavke za treniranje.
-
-2. **studije_analize**  
-   - **Što radi?** Analiza utjecaja komponenti modela (npr. ablation studije).  
-   - **Primjer upotrebe**: Testira koji dijelovi modela najviše utječu na performanse.
+- `optimizacija_hiperparametara/`: Skripte za optimizaciju hiperparametara.
+- `studije_analize/`: Skripte za analizu komponenti modela.

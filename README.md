@@ -336,3 +336,47 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 ## 📞 Kontakt / Contact
 
 For questions or suggestions, contact the author on GitHub: [your-username](https://github.com/your-username).
+
+# MasterCoderAI
+
+MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, automatizaciju i još mnogo toga.
+
+## Struktura projekta
+
+- **arhitektura/**: Dijagrami i tehnički zahtjevi.
+- **dokumentacija/**: API specifikacije i modeli prijetnji.
+- **eksperimenti/**: Optimizacija hiperparametara i studije analize.
+- **evaluacija/**: Benchmarking i test scenariji.
+- **gotovi_bot/**: Bot aplikacija s Docker podrškom.
+- **infrastruktura/**: Kubernetes i Terraform konfiguracije.
+- **modeli/**: Model checkpointovi i MLflow praćenje.
+- **nadzor/**: Prometheus i Grafana za monitoring.
+- **podaci/**: Sirovi i obrađeni podaci.
+- **skripte/**: Utility skripte za obradu podataka i treniranje modela.
+- **src/**: Glavni izvorni kod (AI engine, API, bot, itd.).
+
+## Instalacija
+
+1. Klonirajte repozitorij:
+   ```bash
+   git clone https://github.com/korisnik/MasterCoderAI.git
+   cd MasterCoderAI
+   ```
+2. Instalirajte zavisnosti:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+## Pokretanje
+
+- Pokrenite skripte ili module prema potrebi, npr.:
+  ```bash
+  python src/api/main.py
+  ```
+
+## Testiranje
+
+- Pokrenite testove koristeći pytest:
+  ```bash
+  pytest tests/
+  ```

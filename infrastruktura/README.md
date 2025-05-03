@@ -1,16 +1,8 @@
-# infrastruktura / Infra
+# Infrastruktura
 
-Ovaj folder sadrži kod za infrastrukturu projekta (Infrastructure as Code).
+Ovaj direktorij sadrži konfiguracije za infrastrukturu projekta MasterCoderAI.
 
-## Broj fajlova: 0 (samo podfolderi)
-- Podfolderi: `terraform`, `kubernetes`
+## Sadržaj
 
-## Opis podfoldera
-
-1. **terraform**  
-   - **Što radi?** Definira cloud resurse (npr. serveri, mreže).  
-   - **Primjer upotrebe**: Automatski postavlja infrastrukturu na AWS-u.
-
-2. **kubernetes**  
-   - **Što radi?** Sadrži Helm chartove za Kubernetes deploy.  
-   - **Primjer upotrebe**: Deploya bot na Kubernetes klaster.
+- `kubernetes/`: Helm chartovi i manifesti za Kubernetes.
+- `terraform/`: Terraform konfiguracije za cloud resurse.

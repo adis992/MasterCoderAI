@@ -1,3 +1,13 @@
+# Podaci
+
+Ovaj direktorij sadrži sirove i obrađene podatke za projekt MasterCoderAI.
+
+## Sadržaj
+
+- `sirovi/`: Neobrađeni podaci.
+- `obradeni/`: Obradjeni podaci.
+- `dvc.yaml`: DVC pipeline definicije.
+
 # podaci / Data
 
 Ovaj folder sadrži sve podatke za treniranje i rad AI bota.

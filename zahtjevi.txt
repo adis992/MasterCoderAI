@@ -19,3 +19,5 @@ dvc
 dvc-s3
 pytest
 bandit
+```
+# Preimenovano u requirements.txt

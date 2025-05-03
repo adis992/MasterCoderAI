@@ -1,6 +1,11 @@
-# nadzor / Monitoring
+# Nadzor
 
-Ovaj folder sadrži kod za praćenje performansi (observability setups).
+Ovaj direktorij sadrži konfiguracije za monitoring sistema.
+
+## Sadržaj
+
+- `prometheus/`: Konfiguracije za Prometheus.
+- `grafana/`: Dashboard definicije za Grafana.
 
 ## Broj fajlova: 0 (samo podfolderi)
 - Podfolderi: `prometheus`, `grafana`

@@ -1,17 +1,8 @@
-# dokumentacija
+# Dokumentacija
 
-Ovaj folder sadrži dokumentaciju projekta.
+Ovaj direktorij sadrži dokumentaciju za projekt MasterCoderAI.
 
-## Broj fajlova: 2
-- `api_spec.yaml`
-- `model_prijetnji.md`
+## Sadržaj
 
-## Opis fajlova
-
-1. **api_spec.yaml**  
-   - **Što radi?** OpenAPI specifikacija za API (dokumentira API endpointove).  
-   - **Primjer upotrebe**: Generiranje dokumentacije za API.
-
-2. **model_prijetnji.md**  
-   - **Što radi?** Sigurnosna analiza projekta (threat modeling).  
-   - **Primjer upotrebe**: Identificira potencijalne sigurnosne rizike.
+- `api_spec.yaml`: Specifikacija API-ja.
+- `model_prijetnji.md`: Model prijetnji za sigurnost sistema.

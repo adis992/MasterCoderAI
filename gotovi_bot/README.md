@@ -1,12 +1,13 @@
-# Gotovi Bot / Ready Bot
+# Gotovi Bot
 
-Ovaj folder sadrži gotovog bota spremnog za pokretanje i integraciju.
+Ovaj direktorij sadrži implementaciju gotovog bota s Docker podrškom.
 
 ## Sadržaj
 
-- **bot.py**: Glavna skripta za pokretanje bota.
-- **docker-compose.yml**: Konfiguracija za pokretanje bota koristeći Docker.
-- **Dockerfile**: Definicija Docker imidža za bota.
+- `bot.py`: Glavna skripta za bota.
+- `Dockerfile`: Konfiguracija za Docker image.
+- `docker-compose.yml`: Konfiguracija za pokretanje bota u Docker okruženju.
+
 - **main.py**: Ulazna tačka za aplikaciju bota.
 - **requirements.txt**: Lista Python zavisnosti potrebnih za bota.
 
