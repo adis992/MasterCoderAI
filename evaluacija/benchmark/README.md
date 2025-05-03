@@ -1,12 +1,22 @@
-# benchmark
+# benchmark / Benchmarking
 
-Ovaj folder sadrži kod za usporedne testove performansi modela.
+Ovaj folder sadrži skripte za usporedno testiranje performansi modela.
 
-## Broj fajlova: 1
-- `benchmark.py`
+## Sadržaj
 
-## Opis fajlova
+- **benchmark.py**: Skripta za mjerenje performansi modela i data pipeline-a.
 
-1. **benchmark.py**  
-   - **Što radi?** Uspoređuje performanse tvog modela s drugim modelima (npr. brzina, točnost).  
-   - **Primjer upotrebe**: Provjerava koliko je tvoj model bolji od drugih.
+## Kako koristiti
+
+1. **Pokretanje benchmarka**:
+   ```bash
+   python evaluacija/benchmark/benchmark.py
+   ```
+
+2. **Dodavanje novih benchmark testova**:
+   - Dodajte nove funkcije u `benchmark.py`.
+   - Koristite postojeće funkcije kao šablon.
+
+## Napomene
+
+- Osigurajte da su svi potrebni podaci i modeli dostupni prije pokretanja benchmarka.

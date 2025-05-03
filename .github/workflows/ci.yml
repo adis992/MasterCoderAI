@@ -26,5 +26,17 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r zahtjevi.txt
 
+    - name: Lint with flake8
+      run: flake8 src
+
+    - name: Format check with black
+      run: black --check src
+
+    - name: Type check with mypy
+      run: mypy src
+
+    - name: Security scan with bandit
+      run: bandit -r src
+
     - name: Run tests
       run: pytest evaluacija/testovi

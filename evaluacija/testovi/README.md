@@ -1,12 +1,22 @@
-# testovi / Test Suites
+# testovi / Tests
 
-Ovaj folder sadrži kod za scenario-based testiranje modela.
+Ovaj folder sadrži testove za provjeru funkcionalnosti i performansi projekta.
 
-## Broj fajlova: 1
-- `scenariji_testiranja.py`
+## Sadržaj
 
-## Opis fajlova
+- **scenariji_testiranja.py**: Testira različite scenarije korištenja modela i API-ja.
 
-1. **scenariji_testiranja.py**  
-   - **Što radi?** Testira model na programerskim scenarijima (npr. pisanje koda, debugging).  
-   - **Primjer upotrebe**: Provjerava kako model odgovara na specifične upite.
+## Kako koristiti
+
+1. **Pokretanje testova**:
+   ```bash
+   pytest evaluacija/testovi
+   ```
+
+2. **Dodavanje novih testova**:
+   - Dodajte nove testne funkcije u `scenariji_testiranja.py`.
+   - Koristite `pytest` za validaciju.
+
+## Napomene
+
+- Osigurajte da su svi potrebni podaci i modeli dostupni prije pokretanja testova.
