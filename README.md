@@ -343,26 +343,29 @@ MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, aut
 
 ## Struktura projekta
 
-- **arhitektura/**: Dijagrami i tehnički zahtjevi.
-- **dokumentacija/**: API specifikacije i modeli prijetnji.
-- **eksperimenti/**: Optimizacija hiperparametara i studije analize.
-- **evaluacija/**: Benchmarking i test scenariji.
-- **gotovi_bot/**: Bot aplikacija s Docker podrškom.
-- **infrastruktura/**: Kubernetes i Terraform konfiguracije.
-- **modeli/**: Model checkpointovi i MLflow praćenje.
-- **nadzor/**: Prometheus i Grafana za monitoring.
-- **podaci/**: Sirovi i obrađeni podaci.
-- **skripte/**: Utility skripte za obradu podataka i treniranje modela.
-- **src/**: Glavni izvorni kod (AI engine, API, bot, itd.).
+1. **arhitektura/**: Dijagrami i tehnički zahtjevi.
+2. **dokumentacija/**: API specifikacije i modeli prijetnji.
+3. **eksperimenti/**: Optimizacija hiperparametara i studije analize.
+4. **evaluacija/**: Benchmarking i test scenariji.
+5. **gotovi_bot/**: Bot aplikacija s Docker podrškom.
+6. **infrastruktura/**: Kubernetes i Terraform konfiguracije.
+7. **modeli/**: Model checkpointovi i MLflow praćenje.
+8. **nadzor/**: Prometheus i Grafana za monitoring.
+9. **podaci/**: Sirovi i obrađeni podaci.
+10. **skripte/**: Utility skripte za obradu podataka i treniranje modela.
+11. **src/**: Glavni izvorni kod (AI engine, API, bot, itd.).
 
 ## Instalacija
 
 1. Klonirajte repozitorij:
+
    ```bash
    git clone https://github.com/adis922/MasterCoderAI.git
    cd MasterCoderAI
    ```
+
 2. Instalirajte zavisnosti:
+
    ```bash
    pip install -r requirements.txt
    ```
@@ -370,16 +373,18 @@ MasterCoderAI je zbirka Python projekata koji uključuju igre, alate, AI/ML, aut
 ## Pokretanje
 
 - Pokrenite skripte ili module prema potrebi, npr.:
-  ```bash
-  python src/api/main.py
-  ```
+
+   ```bash
+   python src/api/main.py
+   ```
 
 ## Testiranje
 
 - Pokrenite testove koristeći pytest:
-  ```bash
-  pytest tests/
-  ```
+
+   ```bash
+   pytest tests/
+   ```
 
 ## Autor
 
