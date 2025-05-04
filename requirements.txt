@@ -8,7 +8,7 @@ uvicorn==0.24.0
 websockets==12.0
 transformers==4.35.0
 torch==2.7.0
-python-dotenv==1.0.0
+python-dotenv>=0.21.0
 pydantic==2.4.2
 numpy==1.26.4
 sentence-transformers==2.2.2
@@ -29,3 +29,4 @@ dvc-s3
 pytest
 bandit
 pytest-cov
+pre-commit>=2.20.0

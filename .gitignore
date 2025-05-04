@@ -9,7 +9,7 @@ __pycache__/
 venv/
 ENV/
 env/
-.env/
+.env
 
 # Environment variables
 .env
@@ -20,6 +20,7 @@ data/raw/
 models/mlruns/
 models/moj-bot/
 mlruns/
+modeli/mlruns/
 
 # Editors
 .vscode/

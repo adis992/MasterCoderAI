@@ -7,9 +7,9 @@ class TestAPI(unittest.TestCase):
         self.client = TestClient(app)
 
     def test_root_endpoint(self):
-        response = self.client.get("/")
+        response = self.client.get("/health")
         self.assertEqual(response.status_code, 200)
-        self.assertIn("message", response.json())
+        self.assertEqual(response.json(), {"status": "ok"})
 
     def test_app_exists(self):
         self.assertIsNotNone(app)

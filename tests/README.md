@@ -3,7 +3,7 @@
 This directory contains all unit and integration tests for the MasterCoderAI project.
 
 ## Structure
-- `test_calculator.py`: Unit tests for the calculator module.
+
 - `test_web_scraper.py`: Unit tests for the web scraper module.
 
 ## Running Tests

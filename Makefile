@@ -53,3 +53,7 @@ docker-push:
 
 # Sve je spremno
 all: install collect-data process-data train run-bot run-api
+
+.PHONY: run-webui
+run-webui:
+	cd webui; npm install; npm start

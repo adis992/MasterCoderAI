@@ -3,16 +3,18 @@
 MasterCoderAI is an all-in-one MLOps project designed to streamline AI development, deployment, and monitoring. This repository is organized as a monorepo with modular components for various stages of the MLOps lifecycle.
 
 ## Modules
-1. **arhitektura/**: System architecture diagrams and specifications.
-2. **dokumentacija/**: Detailed documentation, including API specs and threat modeling.
-3. **podaci/**: Data ETL processes and DVC pipelines.
-4. **skripte/**: Helper scripts for data collection, cleaning, and training.
-5. **src/**: Core project code, including AI engine, data pipeline, and API.
-6. **modeli/**: Model checkpoints and MLflow tracking.
-7. **eksperimenti/**: Hyperparameter tuning and ablation studies.
-8. **evaluacija/**: Benchmark tests and evaluation scenarios.
-9. **infrastruktura/**: Terraform and Kubernetes deployment scripts.
-10. **nadzor/**: Monitoring configurations for Prometheus and Grafana.
+- **architecture/**: System architecture diagrams and specifications.
+- **documentation/**: Detailed documentation, including API specs and threat modeling.
+- **data/**: Data ETL processes and DVC pipelines.
+- **scripts/**: Helper scripts for data collection, cleaning, and training.
+- **src/**: Core project code, including AI engine, data pipeline, and API.
+- **tests/**: Unit and integration tests.
+- **tools/**: Command-line and helper tools.
+- **evaluation/**: Benchmark tests and evaluation scenarios.
+- **experiments/**: Hyperparameter tuning and ablation studies.
+- **models/**: Trained models and MLflow tracking.
+- **monitoring/**: Prometheus and Grafana configurations for observability.
+- **webui/**: Front-end React application (chat interface & gallery).
 
 ## Features
 
@@ -46,89 +48,29 @@ Testiramo na sljedećem računaru:
 
 ## 📂 Struktura projekta / Project Structure
 
-Struktura projekta je modularna, s jasnim folderima za svaki dio. Svaki folder ima svoj `README.md` koji objašnjava čemu služi i što sadrži.
-
 ```
 📁 MasterCoderAI
-├── 📄 README.md                             # Ovaj fajl – pregled projekta
-├── 📄 LICENSE                               # Licenca (MIT)
-├── 📄 .gitignore                            # Isključene datoteke (env, logs, data)
-├── 📄 Makefile                              # Uobičajeni zadaci (build, test, deploy)
-├── 📄 zahtjevi.txt / requirements.txt       # Python zavisnosti
-├── 📄 docker-compose.yml                    # Lokalna razvojna okruženja
+├── 📄 README.md                 # Pregled projekta
+├── 📄 LICENSE                   # Licenca (MIT)
+├── 📄 .gitignore                # Ignorirane datoteke
+├── 📄 Makefile                  # Uobičajeni zadaci (build, test, deploy)
+├── 📄 docker-compose.yml        # Konfiguracija servisa
+├── 📄 requirements.txt          # Python zavisnosti
+├── 📄 setup.sh                  # Setup script za Ubuntu/Linux
+├── 📄 rename_folders.sh         # Script za preimenovanje foldera
 │
-├── 📁 .github
-│   └── 📁 workflows
-│       ├── 📄 ci.yml                        # CI: lint, test, build
-│       └── 📄 cd.yml                        # CD: deploy staging/production
-│
-├── 📁 arhitektura / architecture
-│   ├── 📄 sistem_dijagram.drawio            # Vizualni plan sistema
-│   └── 📄 tehnicki_zahtjevi.md              # Nefunkcionalni zahtjevi
-│
-├── 📁 podaci / data
-│   ├── 📁 sirovi / raw                      # Neobrađeni podaci
-│   │   ├── 📄 github_sirovi.jsonl           # GitHub kod i komentari
-│   │   ├── 📄 bosanski_sirovi.jsonl         # Srb-hr-bos tekstovi
-│   │   └── 📄 engleski_sirovi.jsonl         # Engleski tekstovi
-│   ├── 📁 obrađeni / processed              # Očišćeni podaci
-│   │   ├── 📄 github_obrađeni.jsonl         # Očišćeni GitHub podaci
-│   │   ├── 📄 bosanski_obrađeni.jsonl       # Očišćeni srb-hr-bos podaci
-│   │   └── 📄 engleski_obrađeni.jsonl       # Očišćeni engleski podaci
-│   └── 📄 dvc.yaml                          # DVC definicije
-│
-├── 📁 src                                   # Sav izvorni kod
-│   ├── 📁 ai_motor / ai_engine              # Učitavanje i logika modela
-│   │   ├── 📄 model_loader.py               # Dinamičko učitavanje
-│   │   ├── 📄 prompt_engineer.py            # Kreiranje promptova
-│   │   └── 📄 hibridni_model.py             # Kombinacija modela
-│   ├── 📁 tok_podataka / data_pipeline      # Obrada podataka
-│   │   ├── 📄 validator_podataka.py         # Provjera kvaliteta
-│   │   ├── 📄 augmentator_podataka.py       # Generisanje podataka
-│   │   └── 📄 vektorska_baza.py             # Upravljanje embedinzima
-│   ├── 📁 graf_znanja / knowledge_graph     # Sistem znanja
-│   │   └── 📄 znanje_baza.py                # Ekspertni sistem
-│   ├── 📁 api                               # FastAPI aplikacija
-│   │   ├── 📄 main.py                       # Glavni API
-│   │   ├── 📄 middleware.py                 # Sigurnost i rate limiting
-│   │   └── 📄 ws_endpoints.py               # WebSocket podrška
-│   └── 📁 bot                               # Orkiestracija bota
-│       ├── 📄 bot.py                        # Glavna skripta bota
-│       └── 📄 konfiguracija.py              # Postavke
-│
-├── 📁 modeli / models                       # Trenirani modeli
-│   ├── 📁 moj-bot / my-bot                  # Tvoj lokalni model
-│   ├── 📁 mlruns                            # MLflow praćenje
-│   └── 📄 registry.yaml                     # Registar modela
-│
-├── 📁 eksperimenti / experiments            # Testiranje i optimizacija
-│   ├── 📁 optimizacija_hiperparametara      # Hyperparameter tuning
-│   │   └── 📄 optuna_tuning.py              # Optimizacija parametara
-│   └── 📁 studije_analize / ablation_studies
-│       └── 📄 ablation_test.py              # Analiza komponenti modela
-│
-├── 📁 evaluacija / evaluation               # Testiranje performansi
-│   ├── 📁 benchmark                         # Skripte za testiranje
-│   │   └── 📄 benchmark.py                  # Usporedni testovi
-│   └── 📁 testovi / test_suites
-│       └── 📄 scenariji_testiranja.py       # Testiranje scenarija
-│
-├── 📁 infrastruktura / infra                # Infrastruktura kao kod
-│   ├── 📁 terraform                         # Definicije cloud resursa
-│   └── 📁 kubernetes                        # Helm chartovi i manifesti
-│
-├── 📁 nadzor / monitoring                   # Praćenje i observability
-│   ├── 📁 prometheus                        # Prometheus konfiguracija
-│   │   └── 📄 prometheus_conf.yaml          # Metrike
-│   └── 📁 grafana                           # Grafana dashboardi
-│       └── 📄 grafana_dashboards            # Vizualizacija
-│
-└── 📁 skripte / scripts                     # Utility skripte
-    ├── 📄 skupljaj_github.py                # Prikupljanje GitHub podataka
-    ├── 📄 skupljaj_bosanski.py              # Prikupljanje srb-hr-bos podataka
-    ├── 📄 skupljaj_engleski.py              # Prikupljanje engleskih podataka
-    ├── 📄 obradi_podatke.py                 # Pipeline čišćenja podataka
-    └── 📄 treniraj_model.py                 # Entrypoint za treniranje
+├── 📁 architecture             # Dizajn sistema i tehnički zahtjevi
+├── 📁 data                     # Podaci (sirovi i obrađeni)
+├── 📁 documentation            # Dokumentacija (API spec, prijetnje)
+├── 📁 evaluation               # Evaluacija i benchmark testovi
+├── 📁 experiments              # Eksperimenti i optimizacije
+├── 📁 models                   # Trenirani modeli i MLflow
+├── 📁 monitoring               # Praćenje (Prometheus, Grafana)
+├── 📁 scripts                  # Utility skripte (ETL, training)
+├── 📁 src                      # Izvorni kod (API, bot, pipeline)
+├── 📁 tests                    # Unit i integracijski testovi
+├── 📁 tools                    # Pomoćni alati i generičke skripte
+└── 📁 webui                    # React web UI (chat + gallery)
 ```
 
 ## Detailed Installation and Setup Instructions
