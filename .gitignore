@@ -16,3 +16,10 @@ modeli/moj-bot/
 # Ignorisi OS fajlove
 .DS_Store
 Thumbs.db
+# Adding rules to ignore unnecessary files
+mlruns/
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd

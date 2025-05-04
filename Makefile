@@ -28,7 +28,7 @@ run-api:
 
 # Testiranje
 test:
-	pytest evaluacija/testovi
+	pytest tests/ --cov=src
 
 # Lintiranje koda
 lint:
@@ -37,6 +37,19 @@ lint:
 # Dodavanje linting provjere za sigurnosne ranjivosti
 security-check:
 	bandit -r src/
+
+# Docker login, build, and push
+docker-login:
+	@echo "Logging into Docker registry..."
+	@echo "dckr_pat_hRWZ0euTClOA7MUwC8gcB6xdMU4" | docker login -u "adis1992" --password-stdin
+
+docker-build:
+	@echo "Building Docker image..."
+	@docker build -t "$$DOCKER_REGISTRY"/mastercoderai:latest .
+
+docker-push:
+	@echo "Pushing Docker image..."
+	@docker push "$$DOCKER_REGISTRY"/mastercoderai:latest
 
 # Sve je spremno
 all: install collect-data process-data train run-bot run-api

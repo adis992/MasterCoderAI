@@ -1,6 +1,18 @@
 # MasterCoderAI 🤖
 
-MasterCoderAI is a professional AI bot designed to assist with programming tasks, supporting multiple languages including Serbian, Croatian, and Bosnian. It combines industry best practices to enable local model creation from scratch or integration with pre-trained models.
+MasterCoderAI is an all-in-one MLOps project designed to streamline AI development, deployment, and monitoring. This repository is organized as a monorepo with modular components for various stages of the MLOps lifecycle.
+
+## Modules
+1. **arhitektura/**: System architecture diagrams and specifications.
+2. **dokumentacija/**: Detailed documentation, including API specs and threat modeling.
+3. **podaci/**: Data ETL processes and DVC pipelines.
+4. **skripte/**: Helper scripts for data collection, cleaning, and training.
+5. **src/**: Core project code, including AI engine, data pipeline, and API.
+6. **modeli/**: Model checkpoints and MLflow tracking.
+7. **eksperimenti/**: Hyperparameter tuning and ablation studies.
+8. **evaluacija/**: Benchmark tests and evaluation scenarios.
+9. **infrastruktura/**: Terraform and Kubernetes deployment scripts.
+10. **nadzor/**: Monitoring configurations for Prometheus and Grafana.
 
 ## Features
 
@@ -208,6 +220,26 @@ make run-bot
 # Run the API
 make run-api
 ```
+
+### Docker Build i Deploy
+
+Za izgradnju i deploy Docker container-a:
+
+```bash
+# Login na Docker Registry (već konfigurisan u Makefile i CD pipeline)
+make docker-login
+
+# Izgradnja Docker image-a
+make docker-build
+
+# Push na Docker Registry
+make docker-push
+
+# Pokretanje svih servisa pomoću docker-compose
+docker-compose up -d
+```
+
+Docker credentials su već konfigurisani u CI/CD pipeline-u i Makefile-u. Za prilagođavanje, izmijeni DOCKER_REGISTRY u .env fajlu.
 
 ### Functionalities
 

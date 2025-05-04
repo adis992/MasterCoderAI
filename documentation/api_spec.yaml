@@ -1,0 +1,31 @@
+openapi: 3.0.0
+info:
+  title: MasterCoderAI API
+  version: 1.0.0
+description: |
+  This is the OpenAPI specification for the MasterCoderAI API.
+paths:
+  /chat:
+    post:
+      summary: Chat with the bot
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                message:
+                  type: string
+                  description: The message to send to the bot
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response:
+                    type: string
+                    description: The bot's response
