@@ -34,13 +34,13 @@ MasterCoderAI is an all-in-one MLOps project designed to streamline AI developme
 
 Testiramo na sljedećem računaru:
 
-- **CPU**: AMD Ryzen 9
+- **CPU**: AMD Ryzen 9 12/24 core
 
 - **RAM**: 32 GB
 
-- **GPU**: NVIDIA RTX 3090 (24 GB VRAM) + NVIDIA GTX 1080Ti (11 GB VRAM)
+- **GPU**: NVIDIA RTX 3090 (24 GB VRAM) x2 + NVIDIA GTX 1080Ti (11 GB VRAM)
 
-- **Diskovi**: 168 TB (SSD/HDD)
+- **Diskovi**: 120GB/12 TB (SSD/HDD)
 
 - **OS**: Ubuntu (preko WSL-a na Windowsu)
 
@@ -367,7 +367,7 @@ This project is licensed under the MIT License. See the `LICENSE` file for detai
 
 ## 📞 Kontakt / Contact
 
-For questions or suggestions, contact the author on GitHub: [your-username](https://github.com/your-username).
+For questions or suggestions, contact the author on GitHub: [adis922](https://github.com/adis922).
 
 # MasterCoderAI
 
