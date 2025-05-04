@@ -41,7 +41,7 @@ security-check:
 # Docker login, build, and push
 docker-login:
 	@echo "Logging into Docker registry..."
-	@echo "dckr_pat_hRWZ0euTClOA7MUwC8gcB6xdMU4" | docker login -u "adis1992" --password-stdin
+	@docker login -u "$$DOCKER_USERNAME" -p "$$DOCKER_TOKEN"
 
 docker-build:
 	@echo "Building Docker image..."
