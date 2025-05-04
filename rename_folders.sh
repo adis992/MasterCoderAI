@@ -10,6 +10,12 @@ if [ -d "gotovi_bot" ]; then
   rm -rf gotovi_bot
 fi
 
+# Brisanje starog nadzor foldera ako postoji monitoring folder
+if [ -d "monitoring" ] && [ -d "src/ai_engine/nadzor" ]; then
+  echo "Brišem stari 'src/ai_engine/nadzor' folder jer je prebačen u 'monitoring'..."
+  rm -rf src/ai_engine/nadzor
+fi
+
 # Preimenovanje foldera
 if [ -d "podaci" ]; then
   echo "Preimenujem 'podaci' u 'data'..."

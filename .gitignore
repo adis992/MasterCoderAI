@@ -1,25 +1,41 @@
-# Ignorisi Python cache fajlove
+# Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-# Ignorisi virtualne env
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtualenv
 venv/
+ENV/
+env/
 .env/
-# Ignorisi podatke i modele
-podaci/obradeni/
-podaci/sirovi/
-modeli/mlruns/
-modeli/moj-bot/
-# Ignorisi VSCode
+
+# Environment variables
+.env
+
+# Data and models
+data/processed/
+data/raw/
+models/mlruns/
+models/moj-bot/
+mlruns/
+
+# Editors
 .vscode/
-# Ignorisi OS fajlove
+.idea/
+*.swp
+*.swo
+
+# OS
 .DS_Store
 Thumbs.db
-# Adding rules to ignore unnecessary files
-mlruns/
-.env
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+
+# Logs
+*.log
+logs/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
