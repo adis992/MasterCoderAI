@@ -48,76 +48,88 @@ Testiramo na sljedećem računaru:
 
 Struktura projekta je modularna, s jasnim folderima za svaki dio. Svaki folder ima svoj `README.md` koji objašnjava čemu služi i što sadrži.
 
-📁 **MasterCoderAI**  
-├── 📄 **README.md**                           # Ovaj fajl – pregled projekta / Project overview  
-├── 📄 **LICENSE**                            # Licenca / Open-source license (e.g., MIT)  
-├── 📄 **.gitignore**                         # Ignorira env, logove, podatke / Excludes env, logs, data  
-├── 📄 **Makefile**                           # Uobičajeni zadaci / Common tasks (build, test, deploy)  
-├── 📄 **zahtjevi.txt / requirements.txt**    # Python zavisnosti / Python dependencies  
-├── 📄 **docker-compose.yml**                 # Lokalna okruženja / Local dev and integration environments  
-├── 📁 **.github**  
-│   └── 📁 **workflows**  
-│       ├── 📄 **ci.yml**                     # CI: lint, test, build  
-│       └── 📄 **cd.yml**                     # CD: deploy to staging/production  
-├── 📁 **arhitektura / architecture**  
-│   ├── 📄 **sistem_dijagram.drawio**         # Vizuelni plan / Visual blueprint  
-│   └── 📄 **tehnicki_zahtjevi.md**           # Nefunkcionalni zahtjevi / Non-functional requirements  
-├── 📁 **podaci / data**  
-│   ├── 📁 **sirovi / raw**                   # Neobrađeni podaci / Immutable source data  
-│   │   ├── 📄 **github_sirovi.jsonl**        # GitHub kod i komentari / GitHub code and comments  
-│   │   ├── 📄 **bosanski_sirovi.jsonl**      # Srb-hr-bos tekstovi / Srb-hr-bos texts  
-│   │   └── 📄 **engleski_sirovi.jsonl**      # Engleski tekstovi / English texts  
-│   ├── 📁 **obrađeni / processed**           # Očišćeni podaci / Cleaned and versioned outputs  
-│   │   ├── 📄 **github_obrađeni.jsonl**      # Očišćeni GitHub podaci / Cleaned GitHub data  
-│   │   ├── 📄 **bosanski_obrađeni.jsonl**    # Očišćeni srb-hr-bos podaci / Cleaned Srb-hr-bos data  
-│   │   └── 📄 **engleski_obrađeni.jsonl**    # Očišćeni engleski podaci / Cleaned English data  
-│   └── 📄 **dvc.yaml**                       # DVC definicije / DVC pipeline definitions  
-├── 📁 **src**                                # Sav izvorni kod / All source code  
-│   ├── 📁 **ai_motor / ai_engine**           # Učitavanje i logika modela / Model loading, inference  
-│   │   ├── 📄 **model_loader.py**            # Dinamičko učitavanje / Dynamic model loading  
-│   │   ├── 📄 **prompt_engineer.py**         # Kreiranje promptova / Prompt templating  
-│   │   └── 📄 **hibridni_model.py**          # Kombinacija modela / Ensemble models  
-│   ├── 📁 **tok_podataka / data_pipeline**   # Obrada podataka / ETL, validation, augmentation  
-│   │   ├── 📄 **validator_podataka.py**      # Provjera kvaliteta / Data quality checks  
-│   │   ├── 📄 **augmentator_podataka.py**    # Generisanje podataka / Synthetic data generation  
-│   │   └── 📄 **vektorska_baza.py**          # Upravljanje embedinzima / Embedding management  
-│   ├── 📁 **graf_znanja / knowledge_graph**  # Sistem znanja / Domain knowledge and reasoning  
-│   │   └── 📄 **znanje_baza.py**             # Ekspertni sistem / Knowledge base  
-│   ├── 📁 **api**                            # FastAPI aplikacija / FastAPI application  
-│   │   ├── 📄 **main.py**                    # Glavni API / Main API  
-│   │   ├── 📄 **middleware.py**              # Sigurnost / Security and rate limiting  
-│   │   └── 📄 **ws_endpoints.py**            # WebSocket podrška / WebSocket support  
-│   └── 📁 **bot**                            # Orkiestracija bota / Bot orchestration  
-│       ├── 📄 **bot.py**                     # Glavna skripta bota / Main bot script  
-│       └── 📄 **konfiguracija.py**           # Postavke / Configuration  
-├── 📁 **modeli / models**                    # Trenirani modeli / Trained model artifacts  
-│   ├── 📁 **moj-bot / my-bot**               # Tvoj lokalni model / Your local model  
-│   ├── 📁 **mlruns**                         # MLflow praćenje / MLflow tracking server data  
-│   └── 📄 **registry.yaml**                  # Registar modela / Model registry pointers  
-├── 📁 **eksperimenti / experiments**         # Testiranje i optimizacija / Hyperparameter sweeps, ablations  
-│   ├── 📁 **optimizacija_hiperparametara / hyperparameter_tuning**  
-│   │   ├── 📄 **optuna_tuning.py**           # Optimizacija / Parameter tuning  
-│   └── 📁 **studije_analize / ablation_studies**  
-│       ├── 📄 **ablation_test.py**           # Analiza modela / Component impact analysis  
-├── 📁 **evaluacija / evaluation**            # Testiranje performansi / Benchmark and test reporting  
-│   ├── 📁 **benchmark**                      # Skripte za testiranje / Benchmark scripts & data  
-│   │   ├── 📄 **benchmark.py**               # Usporedni testovi / Comparative tests  
-│   └── 📁 **testovi / test_suites**  
-│       ├── 📄 **scenariji_testiranja.py**    # Testiranje scenarija / Scenario-based testing  
-├── 📁 **infrastruktura / infra**             # Infrastruktura kao kod / Infrastructure as code  
-│   ├── 📁 **terraform**                      # Definicije resursa / Cloud resource definitions  
-│   └── 📁 **kubernetes**                     # Helm chartovi / Helm charts & manifests  
-├── 📁 **nadzor / monitoring**                # Praćenje / Observability setups  
-│   ├── 📁 **prometheus**                     # Konfiguracija / Prometheus configs  
-│   │   ├── 📄 **prometheus_conf.yaml**       # Metrike / Metrics  
-│   └── 📁 **grafana**                        # Definicije / Dashboard definitions  
-│       ├── 📄 **grafana_dashboards**         # Vizualizacija / Visualization  
-└── 📁 **skripte / scripts**                  # Utility skripte / Utility and maintenance scripts  
-    ├── 📄 **skupljaj_github.py**             # Prikupljanje podataka / Data ingestion  
-    ├── 📄 **skupljaj_bosanski.py**           # Srb-hr-bos podaci / Srb-hr-bos data collection  
-    ├── 📄 **skupljaj_engleski.py**           # Engleski podaci / English data collection  
-    ├── 📄 **obradi_podatke.py**              # Čišćenje podataka / Data cleaning pipeline  
-    └── 📄 **treniraj_model.py**              # Treniranje / Entrypoint for training  
+```
+📁 MasterCoderAI
+├── 📄 README.md                             # Ovaj fajl – pregled projekta
+├── 📄 LICENSE                               # Licenca (MIT)
+├── 📄 .gitignore                            # Isključene datoteke (env, logs, data)
+├── 📄 Makefile                              # Uobičajeni zadaci (build, test, deploy)
+├── 📄 zahtjevi.txt / requirements.txt       # Python zavisnosti
+├── 📄 docker-compose.yml                    # Lokalna razvojna okruženja
+│
+├── 📁 .github
+│   └── 📁 workflows
+│       ├── 📄 ci.yml                        # CI: lint, test, build
+│       └── 📄 cd.yml                        # CD: deploy staging/production
+│
+├── 📁 arhitektura / architecture
+│   ├── 📄 sistem_dijagram.drawio            # Vizualni plan sistema
+│   └── 📄 tehnicki_zahtjevi.md              # Nefunkcionalni zahtjevi
+│
+├── 📁 podaci / data
+│   ├── 📁 sirovi / raw                      # Neobrađeni podaci
+│   │   ├── 📄 github_sirovi.jsonl           # GitHub kod i komentari
+│   │   ├── 📄 bosanski_sirovi.jsonl         # Srb-hr-bos tekstovi
+│   │   └── 📄 engleski_sirovi.jsonl         # Engleski tekstovi
+│   ├── 📁 obrađeni / processed              # Očišćeni podaci
+│   │   ├── 📄 github_obrađeni.jsonl         # Očišćeni GitHub podaci
+│   │   ├── 📄 bosanski_obrađeni.jsonl       # Očišćeni srb-hr-bos podaci
+│   │   └── 📄 engleski_obrađeni.jsonl       # Očišćeni engleski podaci
+│   └── 📄 dvc.yaml                          # DVC definicije
+│
+├── 📁 src                                   # Sav izvorni kod
+│   ├── 📁 ai_motor / ai_engine              # Učitavanje i logika modela
+│   │   ├── 📄 model_loader.py               # Dinamičko učitavanje
+│   │   ├── 📄 prompt_engineer.py            # Kreiranje promptova
+│   │   └── 📄 hibridni_model.py             # Kombinacija modela
+│   ├── 📁 tok_podataka / data_pipeline      # Obrada podataka
+│   │   ├── 📄 validator_podataka.py         # Provjera kvaliteta
+│   │   ├── 📄 augmentator_podataka.py       # Generisanje podataka
+│   │   └── 📄 vektorska_baza.py             # Upravljanje embedinzima
+│   ├── 📁 graf_znanja / knowledge_graph     # Sistem znanja
+│   │   └── 📄 znanje_baza.py                # Ekspertni sistem
+│   ├── 📁 api                               # FastAPI aplikacija
+│   │   ├── 📄 main.py                       # Glavni API
+│   │   ├── 📄 middleware.py                 # Sigurnost i rate limiting
+│   │   └── 📄 ws_endpoints.py               # WebSocket podrška
+│   └── 📁 bot                               # Orkiestracija bota
+│       ├── 📄 bot.py                        # Glavna skripta bota
+│       └── 📄 konfiguracija.py              # Postavke
+│
+├── 📁 modeli / models                       # Trenirani modeli
+│   ├── 📁 moj-bot / my-bot                  # Tvoj lokalni model
+│   ├── 📁 mlruns                            # MLflow praćenje
+│   └── 📄 registry.yaml                     # Registar modela
+│
+├── 📁 eksperimenti / experiments            # Testiranje i optimizacija
+│   ├── 📁 optimizacija_hiperparametara      # Hyperparameter tuning
+│   │   └── 📄 optuna_tuning.py              # Optimizacija parametara
+│   └── 📁 studije_analize / ablation_studies
+│       └── 📄 ablation_test.py              # Analiza komponenti modela
+│
+├── 📁 evaluacija / evaluation               # Testiranje performansi
+│   ├── 📁 benchmark                         # Skripte za testiranje
+│   │   └── 📄 benchmark.py                  # Usporedni testovi
+│   └── 📁 testovi / test_suites
+│       └── 📄 scenariji_testiranja.py       # Testiranje scenarija
+│
+├── 📁 infrastruktura / infra                # Infrastruktura kao kod
+│   ├── 📁 terraform                         # Definicije cloud resursa
+│   └── 📁 kubernetes                        # Helm chartovi i manifesti
+│
+├── 📁 nadzor / monitoring                   # Praćenje i observability
+│   ├── 📁 prometheus                        # Prometheus konfiguracija
+│   │   └── 📄 prometheus_conf.yaml          # Metrike
+│   └── 📁 grafana                           # Grafana dashboardi
+│       └── 📄 grafana_dashboards            # Vizualizacija
+│
+└── 📁 skripte / scripts                     # Utility skripte
+    ├── 📄 skupljaj_github.py                # Prikupljanje GitHub podataka
+    ├── 📄 skupljaj_bosanski.py              # Prikupljanje srb-hr-bos podataka
+    ├── 📄 skupljaj_engleski.py              # Prikupljanje engleskih podataka
+    ├── 📄 obradi_podatke.py                 # Pipeline čišćenja podataka
+    └── 📄 treniraj_model.py                 # Entrypoint za treniranje
+```
 
 ## Detailed Installation and Setup Instructions
 
