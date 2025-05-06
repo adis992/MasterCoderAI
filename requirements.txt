@@ -36,3 +36,4 @@ python-jose[cryptography]
 passlib[bcrypt]
 psutil
 GPUtil
+slowapi

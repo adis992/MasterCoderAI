@@ -1,5 +1,6 @@
 import sys
-from .config import BotConfig  # Preimenovano iz BotKonfiguracija
+sys.path.insert(0, '/app')
+from src.bot.config import BotConfig  # Preimenovano iz BotKonfiguracija
 from src.ai_engine.model_loader import ModelLoader
 
 class MasterCoderBot:

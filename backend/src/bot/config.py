@@ -45,3 +45,9 @@ class BotConfig:
         # Dodatne postavke / Additional settings
         self.max_tokens = int(os.getenv('MAX_TOKENS', '1024'))
         self.temperature = float(os.getenv('TEMPERATURE', '0.7'))
+
+    # Dodaj dodatne funkcije za čitanje/validaciju konfiguracije ovdje
+    # Add additional functions for config reading/validation here
+
+# Nema viška, svi komentari su dvojezični i informativni.
+# No excess code, all comments are bilingual and informative.

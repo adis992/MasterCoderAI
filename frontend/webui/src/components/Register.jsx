@@ -21,7 +21,7 @@ function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <form className="bg-gray-800 p-8 rounded-xl shadow-md" onSubmit={handleSubmit}>
-        <h2 className="text-2xl text-white mb-4">Register</n2>
+        <h2 className="text-2xl text-white mb-4">Register</h2>
         <input
           className="w-full mb-2 p-2 rounded bg-gray-700 text-white"
           type="text"

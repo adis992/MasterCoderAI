@@ -85,7 +85,7 @@ function ChatLayout() {
     { label: 'Model', type: 'select', options: ['GPT-4', 'GPT-3.5', 'Mixtral', 'Llama', 'Custom'] },
     { label: 'Temperature', type: 'slider', min: 0, max: 1, step: 0.01, default: 0.7 },
     { label: 'Max Tokens', type: 'slider', min: 128, max: 4096, step: 32, default: 1024 },
-    { label: 'Top P', type: 'slider', min: 0, max 1, step: 0.01, default: 1 },
+    { label: 'Top P', type: 'slider', min: 0, max: 1, step: 0.01, default: 1 },
     { label: 'Presence Penalty', type: 'slider', min: -2, max: 2, step: 0.01, default: 0 },
     { label: 'Frequency Penalty', type: 'slider', min: -2, max: 2, step: 0.01, default: 0 },
     { label: 'System Prompt', type: 'textarea', default: '' },

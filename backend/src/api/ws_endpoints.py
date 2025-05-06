@@ -29,7 +29,7 @@ async def secure_websocket_endpoint(websocket: WebSocket):
         while True:
             message = await websocket.receive_text()
             logging.info(f"Received via Secure WS: {message}")
-            response = f"Secure Echo: {message}")
+            response = f"Secure Echo: {message}"
             await websocket.send_text(response)
             logging.info(f"Sent via Secure WS: {response}")
     except WebSocketDisconnect:

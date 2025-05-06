@@ -1,15 +1,21 @@
 import logging
 from fastapi import FastAPI, Request, Depends
-from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from slowapi.middleware import SlowAPIMiddleware
 from slowapi import Limiter
 from slowapi.util import get_remote_address
+# Development imports
 from .middleware import LoggingMiddleware
+# Production middleware (commented out for dev; uncomment in production):
+# from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
+# from fastapi.middleware.trustedhost import TrustedHostMiddleware
+# from .middleware import RateLimitMiddleware
 from .ws_endpoints import router as ws_router
 from .auth import router as auth_router, get_current_user
-from .db import database
+from .db import database, engine, metadata
 from .models import users, chats
 from passlib.context import CryptContext
+from .db import DATABASE_URL as DB_URL
 
 # Configure logging to file
 logging.basicConfig(filename="mastercoderai.log", level=logging.INFO,
@@ -19,18 +25,57 @@ logging.basicConfig(filename="mastercoderai.log", level=logging.INFO,
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI()
+app.state.limiter = limiter  # Register the limiter in app.state for SlowAPI middleware
 app.include_router(auth_router)
+# Logging
 app.add_middleware(LoggingMiddleware)
-# Dodavanje TrustedHost middleware-a za zaštitu od Host header napada
-app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "yourdomain.com"])
+# Production: re-enable for production environment
+# app.add_middleware(HTTPSRedirectMiddleware)
+# app.add_middleware(TrustedHostMiddleware, allowed_hosts=["yourdomain.com"])
+# app.add_middleware(RateLimitMiddleware)
 # Dodavanje SlowAPI middleware-a za integraciju rate limiting-a
 app.add_middleware(SlowAPIMiddleware)
+# CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(ws_router)
 
 # Database connect/disconnect and user seeding
 @app.on_event("startup")
 async def startup():
-    await database.connect()
+    # Retry connecting to the database and creating tables
+    import asyncio
+    from sqlalchemy.exc import OperationalError
+    import os, psycopg2
+    db_name = DB_URL.rsplit('/', 1)[1]
+    default_url = DB_URL.rsplit('/', 1)[0] + "/postgres"
+    retries = 5
+    for n in range(retries):
+        try:
+            # Connect and auto-create database if missing
+            await database.connect()
+            break
+        except OperationalError as e:
+            if f"database \"{db_name}\" does not exist" in str(e):
+                conn = psycopg2.connect(default_url)
+                conn.autocommit = True
+                cur = conn.cursor()
+                cur.execute(f"CREATE DATABASE {db_name}")
+                cur.close()
+                conn.close()
+                logging.info(f"Auto-created database {db_name}")
+            logging.info(f"Database not ready (attempt {n+1}/{retries}): {e}")
+            await asyncio.sleep(2)
+    else:
+        logging.error("Could not connect to database after retries")
+        raise
+    # Create tables after ensuring database exists
+    metadata.create_all(engine)
     # Ensure admin and test user exist
     pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
     for username, password, is_admin in [("admin", "admin", True), ("user", "user", False)]:
@@ -51,28 +96,26 @@ async def health():
     return {"status": "ok"}
 
 @app.post("/chat")
-async def chat_endpoint(request: Request, current_user=Depends(get_current_user)):
+async def chat_endpoint(request: Request):
     data = await request.json()
     message = data.get("message", "")
-    logging.info(f"Chat request from {current_user['username']}: {message}")
-    # Simple echo or actual AI call
+    # Bypass authentication: default user_id 1
     resp_text = f"Echo: {message}"
-    # Save chat
     await database.execute(chats.insert().values(
-        user_id=current_user['id'], message=message, response=resp_text
+        user_id=1, message=message, response=resp_text
     ))
-    logging.info(f"Chat response sent: {resp_text}")
     return {"response": resp_text}
 
 @app.get("/chats")
-async def get_chats(current_user=Depends(get_current_user)):
-    query = chats.select().where(chats.c.user_id == current_user['id']).order_by(chats.c.timestamp)
+async def get_chats():
+    # Bypass authentication: default user_id 1
+    query = chats.select().where(chats.c.user_id == 1).order_by(chats.c.timestamp)
     results = await database.fetch_all(query)
     return [{"id": r['id'], "message": r['message'], "response": r['response'], "timestamp": r['timestamp'].isoformat()} for r in results]
 
 @app.get("/limited")
 @limiter.limit("5/minute")
-async def limited_endpoint():
+async def limited_endpoint(request: Request):
     return {"message": "Ovaj endpoint je ograničen na 5 zahtjeva po minuti."}
 
 @app.get("/secure-endpoint")

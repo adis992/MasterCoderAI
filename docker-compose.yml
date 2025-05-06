@@ -1,9 +1,13 @@
-version: '3.8'
 services:
   api:
     build:
       context: .
       dockerfile: backend/Dockerfile
+      args:
+        REQUIREMENTS: requirements.txt
+    depends_on:
+      postgres:
+        condition: service_healthy
     container_name: mastercoderai-api
     ports:
       - "8000:8000"
@@ -11,26 +15,42 @@ services:
       - ./backend:/app
     command: ["uvicorn", "src.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
     restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://masteruser:masterpass@postgres/masterdb
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   bot:
     build:
       context: .
       dockerfile: backend/Dockerfile
-    ports:
-      - "8001:8000"
+      args:
+        REQUIREMENTS: requirements.txt
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "src/bot/bot.py"]
     volumes:
       - ./backend:/app
     environment:
       - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://masteruser:masterpass@postgres/masterdb
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   webui:
-    image: node:16
+    image: node:20
     working_dir: /app
     volumes:
       - ./frontend/webui:/app
@@ -48,6 +68,11 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U masteruser -d masterdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:

@@ -6,8 +6,8 @@ import datetime
 users = Table(
     "users", metadata,
     Column("id", Integer, primary_key=True),
-    Column("username", String, unique=True, index=True),
-    Column("hashed_password", String),
+    Column("username", String(150), unique=True, index=True),
+    Column("hashed_password", String(255)),
     Column("is_admin", Boolean, default=False)
 )
 
@@ -27,9 +27,9 @@ tasks = Table(
     Column("id", Integer, primary_key=True),
     Column("user_id", Integer, ForeignKey("users.id")),
     Column("task_data", JSON),
-    Column("status", String, default="pending"),
+    Column("status", String(50), default="pending"),
     Column("created_at", DateTime, default=datetime.datetime.utcnow)
 )
 
-# Create tables
-metadata.create_all(engine)
+# Create tables moved to main.py startup event
+# metadata.create_all(engine)
