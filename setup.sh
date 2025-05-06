@@ -39,7 +39,7 @@ pip install --upgrade pip setuptools wheel
 
 # Instaliraj Python zavisnosti
 echo -e "\n${GREEN}Instaliram Python zavisnosti...${NC}"
-pip install -r zahtjevi.txt
+pip install -r requirements.txt
 
 # Pripremi .env datoteku
 echo -e "\n${GREEN}Pripremam .env datoteku...${NC}"

@@ -30,3 +30,9 @@ pytest
 bandit
 pytest-cov
 pre-commit>=2.20.0
+databases
+asyncpg
+python-jose[cryptography]
+passlib[bcrypt]
+psutil
+GPUtil

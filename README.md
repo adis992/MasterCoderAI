@@ -57,7 +57,7 @@ Testiramo na sljedećem računaru:
 ├── 📄 docker-compose.yml        # Konfiguracija servisa
 ├── 📄 requirements.txt          # Python zavisnosti
 ├── 📄 setup.sh                  # Setup script za Ubuntu/Linux
-├── 📄 rename_folders.sh         # Script za preimenovanje foldera
+├── 📄 cleanup.sh                # Script za čišćenje cache i log fajlova
 │
 ├── 📁 architecture             # Dizajn sistema i tehnički zahtjevi
 ├── 📁 data                     # Podaci (sirovi i obrađeni)
