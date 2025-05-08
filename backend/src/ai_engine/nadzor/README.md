@@ -8,6 +8,7 @@ Ovaj direktorij sadrži konfiguracije za monitoring sistema.
 - `grafana/`: Dashboard definicije za Grafana.
 
 ## Broj fajlova: 0 (samo podfolderi)
+
 - Podfolderi: `prometheus`, `grafana`
 
 ## Opis podfoldera
