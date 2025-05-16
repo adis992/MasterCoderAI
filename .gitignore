@@ -1,0 +1,110 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtualenv
+venv/
+ENV/
+env/
+.env
+
+# Environment variables
+.env
+
+# Data and models
+data/processed/
+data/raw/
+models/mlruns/
+models/moj-bot/
+mlruns/
+modeli/mlruns/
+
+# Exclude large model files
+models/
+models/*
+
+# Exclude all pycache files
+**/__pycache__/
+
+# Exclude logs and temporary files
+*.log
+*.out
+
+# Exclude build artifacts
+build/
+
+# Exclude node_modules
+node_modules/
+
+# Exclude database files
+*.db
+
+# Exclude Docker-related files
+docker-compose.yml
+Dockerfile
+
+# Exclude shared documentation
+shared/documentation/
+
+# Exclude frontend build artifacts
+frontend/webui/build/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Frontend
+/frontend/webui/node_modules/
+
+# Exclude all model files
+# Exclude all model and large data files
+*.gguf
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.onnx
+*.tflite
+*.bin
+*.weights
+*.tar.gz
+*.zip
+*.7z
+*.tar
+*.gz
+*.bz2
+*.db
+*.sqlite
+*.sqlite3
+*.hdf5
+*.npz
+*.npy
+*.pkl
+*.joblib
+*.sav
+*.pb
+*.model
+*.mlmodel
+*.mar
+*.rds
+*.dvc
+
+# Exclude backend/models and all subfolders
+backend/models/

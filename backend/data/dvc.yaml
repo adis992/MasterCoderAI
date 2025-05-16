@@ -1,0 +1,23 @@
+stages:
+  collect:
+    cmd: python skripte/skupljaj_github.py && python skripte/skupljaj_bos_srb_hr.py && python skripte/skupljaj_engleski.py
+    deps:
+      - skripte/skupljaj_github.py
+      - skripte/skupljaj_bos_srb_hr.py
+      - skripte/skupljaj_engleski.py
+    outs:
+      - podaci/sirovi/
+  process:
+    cmd: python skripte/obradi_podatke.py
+    deps:
+      - skripte/obradi_podatke.py
+      - podaci/sirovi/
+    outs:
+      - podaci/obradeni/
+  train:
+    cmd: python skripte/treniraj_model.py
+    deps:
+      - skripte/treniraj_model.py
+      - podaci/obradeni/
+    outs:
+      - modeli/moj-bot/
