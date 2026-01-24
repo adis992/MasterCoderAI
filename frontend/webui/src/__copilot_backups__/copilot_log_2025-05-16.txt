@@ -1,5 +1,0 @@
-[2025-05-16]
-- Backup created: AdminPanel.jsx.2025-05-16-restore.bak (before any design changes)
-- All previous changes to AdminPanel.jsx are now restorable.
-- User requested: do not delete or remove any features without explicit approval.
-- Next: Only visual/design improvements allowed, all logic and tabs must remain as in this backup.
