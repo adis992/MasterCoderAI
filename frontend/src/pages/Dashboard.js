@@ -1180,13 +1180,15 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                                 👤 {chat.username || 'Unknown'}
                               </div>
                               <button 
-                                onClick={async () => {
+                                onClick={async (e) => {
+                                  e.stopPropagation(); // PREVENT CARD CLICK!
                                   if (window.confirm('Delete this chat?')) {
                                     try {
                                       await axios.delete(`${apiUrl}/admin/chats/${chat.id}`, getConfig());
                                       loadAdminData(); // Reload list
-                                    } catch (e) {
-                                      alert('❌ Failed to delete chat');
+                                      alert('✅ Chat deleted!');
+                                    } catch (err) {
+                                      alert('❌ Failed to delete chat: ' + (err.response?.data?.detail || err.message));
                                     }
                                   }
                                 }}

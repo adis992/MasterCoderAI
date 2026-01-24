@@ -86,6 +86,10 @@ async def update_user_settings(settings: SettingsUpdate, current_user=Depends(ge
         update_data["top_k"] = settings.top_k
     if settings.repeat_penalty is not None:
         update_data["repeat_penalty"] = settings.repeat_penalty
+    if settings.system_prompt is not None:
+        update_data["system_prompt"] = settings.system_prompt
+    if settings.theme is not None:
+        update_data["theme"] = settings.theme
     
     if update_data:
         query = user_settings.update().where(
