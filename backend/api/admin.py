@@ -108,25 +108,30 @@ async def get_system_stats(current_user=Depends(require_admin)):
 @router.get("/users")
 async def get_all_users(current_user=Depends(require_admin)):
     """Get all users with chat counts"""
-    # Get users with chat count
-    query = """
-        SELECT u.id, u.username, u.is_admin, u.created_at, COUNT(c.id) as total_chats
-        FROM users u
-        LEFT JOIN chats c ON u.id = c.user_id
-        GROUP BY u.id, u.username, u.is_admin, u.created_at
-        ORDER BY u.id
-    """
-    rows = await database.fetch_all(query)
-    return [
-        {
-            "id": row["id"],
-            "username": row["username"],
-            "is_admin": row["is_admin"],
-            "created_at": str(row["created_at"]),
-            "total_chats": row["total_chats"] or 0
-        }
-        for row in rows
-    ]
+    try:
+        # Fetch all users
+        query = users.select()
+        user_list = await database.fetch_all(query)
+        
+        result = []
+        for user in user_list:
+            # Get chat count for this user using SQLAlchemy query
+            count_query = chats.select().where(chats.c.user_id == user["id"])
+            count_result = await database.fetch_all(count_query)
+            chat_count = len(count_result)
+            
+            result.append({
+                "id": user["id"],
+                "username": user["username"],
+                "is_admin": bool(user["is_admin"]),
+                "created_at": str(user["created_at"]) if user["created_at"] else None,
+                "total_chats": chat_count
+            })
+        
+        return result
+    except Exception as e:
+        print(f"❌ Error in /admin/users: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error fetching users: {str(e)}")
 
 @router.post("/users")
 async def create_user(user: UserCreate, current_user=Depends(require_admin)):

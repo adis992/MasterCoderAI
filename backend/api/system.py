@@ -42,23 +42,32 @@ def require_admin(current_user=Depends(get_current_user)):
 @router.get("/settings")
 async def get_system_settings():
     """Get system settings (public)"""
-    query = system_settings.select()
-    settings = await database.fetch_one(query)
-    
-    if not settings:
-        # Create default settings
-        insert_query = system_settings.insert().values(
-            chat_enabled=True,
-            model_auto_load=False,
-            max_message_length=4000,
-            rate_limit_messages=100,
-            allow_user_model_selection=True,
-            maintenance_mode=False
-        )
-        await database.execute(insert_query)
+    try:
+        query = system_settings.select()
         settings = await database.fetch_one(query)
-    
-    return dict(settings)
+        
+        if not settings:
+            # Create default settings
+            insert_query = system_settings.insert().values(
+                chat_enabled=True,
+                model_auto_load=False,
+                max_message_length=4000,
+                rate_limit_messages=100,
+                allow_user_model_selection=True,
+                maintenance_mode=False
+            )
+            await database.execute(insert_query)
+            settings = await database.fetch_one(query)
+        
+        # Convert to dict properly
+        if settings:
+            return dict(settings)
+        return {}
+    except Exception as e:
+        print(f"❌ Error in /system/settings: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"error": str(e), "chat_enabled": True, "model_auto_load": False}
 
 @router.put("/settings")
 async def update_system_settings(

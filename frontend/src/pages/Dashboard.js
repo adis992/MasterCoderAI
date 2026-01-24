@@ -3,8 +3,14 @@ import axios from 'axios';
 import '../Dashboard.css';
 
 export default function Dashboard({ user, onLogout, apiUrl }) {
+  // 💾 PERSIST STATE - Load from localStorage
+  const savedTab = localStorage.getItem('activeTab');
+  const savedChats = localStorage.getItem('chatHistory');
+  
   // Dashboard is default for admin, chat for regular users
-  const [activeTab, setActiveTab] = useState(user?.is_admin ? 'dashboard' : 'chat');
+  const [activeTab, setActiveTab] = useState(
+    savedTab || (user?.is_admin ? 'dashboard' : 'chat')
+  );
   const [systemStatus, setSystemStatus] = useState(null);
   const [systemStats, setSystemStats] = useState(null);
   const [systemSettings, setSystemSettings] = useState({
@@ -21,15 +27,29 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [selectedModel, setSelectedModel] = useState('');
   const [currentModel, setCurrentModel] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [chatHistory, setChatHistory] = useState([]);
+  const [chatHistory, setChatHistory] = useState(() => {
+    // Load from localStorage
+    if (savedChats) {
+      try {
+        return JSON.parse(savedChats);
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+  const [allUserChats, setAllUserChats] = useState([]); // 📝 SVA ADMIN CHAT HISTORIJA
   const [message, setMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false); // ⚡ MAIN INITIALIZATION FLAG
+  const [showRating, setShowRating] = useState(null); // ID chata koji prikazuje rating zvjezdice
   
   // STARTUP INITIALIZATION
   const [initStatus, setInitStatus] = useState({
     database: { done: false, status: 'pending', message: 'Checking database...' },
     users: { done: false, status: 'pending', message: 'Loading users...' },
     models: { done: false, status: 'pending', message: 'Scanning models...' },
+    gpu: { done: false, status: 'pending', message: 'Checking GPU...' },
     settings: { done: false, status: 'pending', message: 'Loading settings...' },
     autoload: { done: false, status: 'pending', message: 'Checking auto-load...' }
   });
@@ -97,22 +117,48 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
-  // Real-time GPU monitoring (every 3 seconds)
+  // Real-time GPU monitoring (every 3 seconds) - ALI SAMO NAKON INICIJALIZACIJE!
   useEffect(() => {
-    const gpuInterval = setInterval(async () => {
+    if (!isInitialized) {
+      console.log('⏳ GPU monitoring waiting for initialization...');
+      return; // NE POČINJE dok nije sve inicijalizirano!
+    }
+    
+    console.log('✅ GPU monitoring started!');
+    
+    // Initial GPU fetch
+    const fetchGPU = async () => {
       try {
-        const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig()).catch(() => ({ data: { gpus: [] } }));
+        const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
         setGpuInfo(gpuRes.data);
+        // Cache GPU info za F5
+        localStorage.setItem('lastGpuInfo', JSON.stringify(gpuRes.data));
       } catch (e) {
         console.error('GPU monitoring error:', e);
+        // Ako fail, probaj učitati iz cache-a
+        const cached = localStorage.getItem('lastGpuInfo');
+        if (cached) {
+          try {
+            setGpuInfo(JSON.parse(cached));
+          } catch {}
+        }
       }
-    }, 3000); // Update every 3 seconds
+    };
+    
+    fetchGPU(); // Odmah učitaj
+    
+    const gpuInterval = setInterval(fetchGPU, 3000); // Update every 3 seconds
     
     return () => clearInterval(gpuInterval);
-  }, []);
+  }, [isInitialized, apiUrl]); // ⚡ ZAVISI OD isInitialized!
 
-  // Real-time System Health monitoring (every 5 seconds)
+  // Real-time System Health monitoring (every 5 seconds) - NAKON INICIJALIZACIJE
   useEffect(() => {
+    if (!isInitialized) {
+      console.log('⏳ Health monitoring waiting for initialization...');
+      return;
+    }
+    
     loadSystemHealth(); // Initial load
     
     const healthInterval = setInterval(() => {
@@ -120,7 +166,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }, 5000); // Update every 5 seconds
     
     return () => clearInterval(healthInterval);
-  }, []);
+  }, [isInitialized]); // ⚡ ZAVISI OD isInitialized!
 
   const loadSystemHealth = async () => {
     try {
@@ -154,25 +200,55 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   };
 
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive - SMOOTH!
   useEffect(() => {
     if (chatMessagesRef.current) {
-      chatMessagesRef.current.scrollTop = chatMessagesRef.current.scrollHeight;
+      chatMessagesRef.current.scrollTo({
+        top: chatMessagesRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
     }
+  }, [chatHistory]);
+  
+  // 💾 PERSIST STATE - Save to localStorage
+  useEffect(() => {
+    localStorage.setItem('activeTab', activeTab);
+  }, [activeTab]);
+  
+  useEffect(() => {
+    localStorage.setItem('chatHistory', JSON.stringify(chatHistory));
   }, [chatHistory]);
 
   useEffect(() => {
-    // ⚡ STARTUP INITIALIZATION - Step by step
+    // ⚡ STARTUP INITIALIZATION - UVIJEK IZNOVA (nema sessionStorage)!
+    console.log('🚀 Starting Dashboard initialization...');
+    
+    // Load cached GPU info immediately (before init)
+    const cachedGpu = localStorage.getItem('lastGpuInfo');
+    if (cachedGpu) {
+      try {
+        setGpuInfo(JSON.parse(cachedGpu));
+        console.log('📦 Loaded cached GPU info');
+      } catch (e) {
+        console.error('Failed to parse cached GPU info:', e);
+      }
+    }
+    
     const initialize = async () => {
       try {
+        setLoading(true);
+        setIsInitialized(false);
+        
         // STEP 1: Check database
+        console.log('📊 STEP 1: Checking database...');
         setInitStatus(prev => ({ ...prev, database: { done: false, status: 'loading', message: 'Checking database...' }}));
         const healthRes = await axios.get(`${apiUrl}/system/health`);
         if (healthRes.data.database.status === 'ok') {
           setInitStatus(prev => ({ ...prev, database: { done: true, status: 'success', message: `✅ ${healthRes.data.database.user_count} users, ${healthRes.data.database.chat_count} chats` }}));
         } else {
           setInitStatus(prev => ({ ...prev, database: { done: true, status: 'error', message: `❌ ${healthRes.data.database.message}` }}));
-          return; // Stop if database is not OK
+          setLoading(false); // Stop if database is not OK
+          return;
         }
         
         // STEP 2: Load users (if admin)
@@ -204,19 +280,31 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         }
         
         // STEP 3: Load models
+        console.log('🤖 STEP 3: Scanning models...');
         setInitStatus(prev => ({ ...prev, models: { done: false, status: 'loading', message: 'Scanning models...' }}));
         const modelsRes = await axios.get(`${apiUrl}/ai/models`, getConfig());
         setModels(modelsRes.data.models || []);
         setInitStatus(prev => ({ ...prev, models: { done: true, status: 'success', message: `✅ ${modelsRes.data.models?.length || 0} models found` }}));
         
-        // STEP 4: Load settings
+        // STEP 4: Load GPU info - ⚡ OBAVEZNO PRIJE NASTAVKA!
+        console.log('🎮 STEP 4: Checking GPU...');
+        setInitStatus(prev => ({ ...prev, gpu: { done: false, status: 'loading', message: 'Checking GPU...' }}));
+        const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
+        setGpuInfo(gpuRes.data);
+        const gpuCount = gpuRes.data?.gpus?.length || 0;
+        const gpuName = gpuRes.data?.gpus?.[0]?.name || 'No GPU';
+        setInitStatus(prev => ({ ...prev, gpu: { done: true, status: gpuCount > 0 ? 'success' : 'warning', message: gpuCount > 0 ? `✅ ${gpuName}` : '⚠️ No GPU detected' }}));
+        
+        // STEP 5: Load settings
+        console.log('⚙️ STEP 5: Loading settings...');
         setInitStatus(prev => ({ ...prev, settings: { done: false, status: 'loading', message: 'Loading settings...' }}));
         const settingsRes = await axios.get(`${apiUrl}/system/settings`);
         const sysSettings = settingsRes.data || {};
         setSystemSettings(prev => ({ ...prev, ...sysSettings }));
         setInitStatus(prev => ({ ...prev, settings: { done: true, status: 'success', message: '✅ Settings loaded' }}));
         
-        // STEP 5: Auto-load model (if enabled)
+        // STEP 6: Auto-load model (if enabled)
+        console.log('🔄 STEP 6: Checking auto-load...');
         setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: 'Checking auto-load...' }}));
         if (sysSettings.model_auto_load && sysSettings.auto_load_model_name) {
           setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: `Loading ${sysSettings.auto_load_model_name}...` }}));
@@ -231,7 +319,12 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         }
         
         // Load all other data in background
-        loadData();
+        console.log('📦 Loading remaining data...');
+        await loadData();
+        
+        // ✅ INITIALIZATION COMPLETE!
+        console.log('✅ Dashboard initialization COMPLETE!');
+        setIsInitialized(true); // ⚡ ENABLE monitoring loops!
         
         // Done! Show dashboard
         setTimeout(() => setLoading(false), 500);
@@ -345,6 +438,11 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
 
   const loadAdminData = async () => {
     try {
+      // Load ALL admin chats for sidebar
+      const allChatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch(() => ({ data: [] }));
+      setAllUserChats(allChatsRes.data || []);
+      console.log('✅ Loaded all admin chats:', allChatsRes.data?.length);
+      
       const [statsRes, usersRes] = await Promise.all([
         axios.get(`${apiUrl}/admin/stats`, getConfig()).catch((err) => { 
           console.error('❌ /admin/stats FAILED:', err.response?.data || err.message); 
@@ -490,6 +588,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     try {
       setChatLoading(true);
       
+      // Get fresh token
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('❌ Session expired! Please login again.');
+        window.location.href = '/login';
+        return;
+      }
+      
+      console.log('📤 Sending chat request to:', `${apiUrl}/ai/chat`);
+      console.log('📤 Token:', token.substring(0, 30) + '...');
+      
       // Prepare request data
       const requestData = {
         message: msgToSend.trim(),
@@ -501,9 +610,27 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         requestData.image = uploadedImage;
       }
       
-      const response = await axios.post(`${apiUrl}/ai/chat`, requestData, getConfig());
+      console.log('📤 Request data:', requestData);
+      
+      const response = await axios.post(`${apiUrl}/ai/chat`, requestData, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 60000 // 60 sec timeout
+      });
       
       console.log('🔍 CHAT RESPONSE:', response.data);
+      console.log('🔍 Response message:', response.data.message);
+      console.log('🔍 Response response:', response.data.response);
+      
+      // Validacija - mora postojati response!
+      if (!response.data.response || response.data.response.trim() === '') {
+        console.error('❌ Empty response from AI!');
+        alert('❌ AI returned empty response. Try again.');
+        setChatLoading(false);
+        return;
+      }
       
       // Add new chat to history
       const newChat = {
@@ -517,15 +644,33 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       };
       
       console.log('📝 NEW CHAT:', newChat);
+      console.log('📝 NEW CHAT response field:', newChat.response);
       
       setChatHistory(prev => [newChat, ...prev]);
       setMessage('');
       setUploadedImage(null); // Clear image after sending
       
+      // Reload admin chats if admin
+      if (user?.is_admin) {
+        loadAdminData();
+      }
+      
       console.log('✅ Chat added to history');
     } catch (err) {
-      console.error('❌ CHAT ERROR:', err);
-      alert(`❌ Error: ${err.response?.data?.detail || err.message}`);
+      console.error('❌ CHAT ERROR FULL:', err);
+      console.error('❌ Error response:', err.response?.data);
+      console.error('❌ Error config:', err.config);
+      
+      let errorMsg = 'Unknown error';
+      if (err.code === 'ERR_NETWORK') {
+        errorMsg = 'Network Error - Cannot reach backend. Check if backend is running on port 8000.';
+      } else if (err.response) {
+        errorMsg = err.response?.data?.detail || err.response?.data?.message || err.message;
+      } else {
+        errorMsg = err.message;
+      }
+      
+      alert(`❌ Chat Error: ${errorMsg}`);
     } finally {
       setChatLoading(false);
     }
@@ -538,8 +683,31 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   };
 
   const copyMessage = (text) => {
-    navigator.clipboard.writeText(text);
-    alert('📋 Copied to clipboard!');
+    // Fallback for HTTP (clipboard API requires HTTPS)
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => alert('📋 Copied to clipboard!'))
+        .catch(() => fallbackCopy(text));
+    } else {
+      fallbackCopy(text);
+    }
+  };
+  
+  const fallbackCopy = (text) => {
+    // Old-school method for HTTP
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      alert('📋 Copied to clipboard!');
+    } catch (err) {
+      alert('❌ Failed to copy. Please copy manually.');
+    }
+    document.body.removeChild(textArea);
   };
 
   // Image upload handler
@@ -890,7 +1058,119 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
           <div className="tab-content">
-            <div className="chat-container">
+            <div style={{display: 'grid', gridTemplateColumns: user?.is_admin ? '250px 1fr' : '1fr', gap: '20px', height: '100%'}}>
+              
+              {/* 📜 CHAT HISTORY SIDEBAR - SAMO ZA ADMINA */}
+              {user?.is_admin && (
+                <div style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  borderRadius: '12px',
+                  padding: '15px',
+                  border: '1px solid rgba(0,255,65,0.2)',
+                  maxHeight: '70vh',
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column'
+                }}>
+                  <h3 style={{marginBottom: '15px', fontSize: '1rem'}}>📜 All Chats ({allUserChats.length})</h3>
+                  
+                  <div style={{flex: 1, overflowY: 'auto', marginBottom: '15px'}}>
+                    {allUserChats.length === 0 ? (
+                      <p style={{fontSize: '0.85rem', opacity: 0.6}}>No chats yet</p>
+                    ) : (
+                      <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
+                        {allUserChats.map((chat, idx) => (
+                          <div 
+                            key={chat.id || idx}
+                            style={{
+                              background: 'rgba(0,255,65,0.05)',
+                              padding: '10px',
+                              borderRadius: '8px',
+                              border: '1px solid rgba(0,255,65,0.1)',
+                              fontSize: '0.85rem',
+                              transition: 'all 0.2s'
+                            }}
+                          >
+                            <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px'}}>
+                              <div style={{fontWeight: 'bold', fontSize: '0.85rem', color: '#00ff41'}}>
+                                👤 {chat.username || 'Unknown'}
+                              </div>
+                              <button 
+                                onClick={async () => {
+                                  if (window.confirm('Delete this chat?')) {
+                                    try {
+                                      await axios.delete(`${apiUrl}/admin/chats/${chat.id}`, getConfig());
+                                      loadAdminData(); // Reload list
+                                    } catch (e) {
+                                      alert('❌ Failed to delete chat');
+                                    }
+                                  }
+                                }}
+                                style={{
+                                  background: 'transparent',
+                                  border: 'none',
+                                  color: '#ff4444',
+                                  cursor: 'pointer',
+                                  fontSize: '0.9rem',
+                                  padding: '0 5px'
+                                }}
+                                title="Delete chat"
+                              >
+                                🗑️
+                              </button>
+                            </div>
+                            <div style={{
+                              fontSize: '0.75rem',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              marginBottom: '4px'
+                            }}>
+                              {chat.message}
+                            </div>
+                            <div style={{fontSize: '0.7rem', opacity: 0.6}}>
+                              {new Date(chat.timestamp).toLocaleString()}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* EXPORT Button na dnu */}
+                  <button
+                    onClick={() => {
+                      const chatText = allUserChats.map(c => 
+                        `[${new Date(c.timestamp).toLocaleString()}] ${c.username}:\\nQ: ${c.message}\\nA: ${c.response}\\n\\n`
+                      ).join('');
+                      const blob = new Blob([chatText], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `all-chats-${new Date().toISOString().split('T')[0]}.txt`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+                    }}
+                    disabled={allUserChats.length === 0}
+                    style={{
+                      padding: '8px 12px',
+                      background: 'linear-gradient(135deg, #00ff41, #00cc33)',
+                      border: 'none',
+                      borderRadius: '6px',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      cursor: allUserChats.length === 0 ? 'not-allowed' : 'pointer',
+                      opacity: allUserChats.length === 0 ? 0.5 : 1,
+                      fontSize: '0.85rem'
+                    }}
+                  >
+                    💾 Export All Chats
+                  </button>
+                </div>
+              )}
+              
+              {/* MAIN CHAT AREA */}
+              <div className="chat-container">{/* Chat content ostaje isti... */}
               <div className="chat-header">
                 <h2>💬 AI Chat</h2>
                 <div className="chat-status">
@@ -952,18 +1232,43 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                             <div className="message-actions" style={{display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap', alignItems: 'center'}}>
                               <button onClick={() => copyMessage(chat.response)} className="btn-small" title="Copy">📋</button>
                               <button onClick={() => reloadAnswer(chat)} className="btn-small" title="Reload Answer">🔄</button>
-                              <span style={{marginLeft: '10px', fontSize: '0.8rem'}}>Rate:</span>
-                              {[1, 2, 3].map(star => (
-                                <button 
-                                  key={star}
-                                  onClick={() => rateMessage(chat.id, star)} 
-                                  className="btn-small"
-                                  style={{background: chat.rating >= star ? 'gold' : 'transparent', border: chat.rating >= star ? '1px solid gold' : '1px solid #666'}}
-                                  title={`Rate ${star}`}
-                                >
-                                  ⭐
-                                </button>
-                              ))}
+                              
+                              {/* LIKE button - klik za prikaz rating-a */}
+                              <button 
+                                onClick={() => setShowRating(showRating === chat.id ? null : chat.id)} 
+                                className="btn-small"
+                                style={{
+                                  background: chat.rating > 0 ? 'rgba(255,215,0,0.2)' : 'transparent',
+                                  border: chat.rating > 0 ? '1px solid gold' : '1px solid #666'
+                                }}
+                                title={chat.rating > 0 ? `Rated ${chat.rating}/3` : "Rate this response"}
+                              >
+                                👍 {chat.rating > 0 && `${chat.rating}/3`}
+                              </button>
+                              
+                              {/* Zvjezdice - prikazuju se samo kad je showRating === chat.id */}
+                              {showRating === chat.id && (
+                                <div style={{display: 'flex', gap: '3px', marginLeft: '5px'}}>
+                                  {[1, 2, 3].map(star => (
+                                    <button 
+                                      key={star}
+                                      onClick={() => {
+                                        rateMessage(chat.id, star);
+                                        setShowRating(null); // Zatvori nakon ocjene
+                                      }} 
+                                      className="btn-small"
+                                      style={{
+                                        background: chat.rating >= star ? 'gold' : 'transparent', 
+                                        border: chat.rating >= star ? '1px solid gold' : '1px solid #666',
+                                        padding: '3px 8px'
+                                      }}
+                                      title={`${star} star${star > 1 ? 's' : ''}`}
+                                    >
+                                      ⭐
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </>
@@ -1013,6 +1318,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 </button>
               </div>
             </div>
+            </div> {/* Close grid */}
           </div>
         )}
 
@@ -1053,9 +1359,9 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
 
             <div className="current-model-card">
               <h3>Current Model</h3>
-              {currentModel?.status === 'loaded' && currentModel?.model_name ? (
-                <p className="model-loaded">🟢 <strong>{currentModel.model_name}</strong> is loaded on GPU</p>
-              ) : currentModel?.status === 'loading' ? (
+              {models?.find(m => m.is_loaded) ? (
+                <p className="model-loaded">🟢 <strong>{models.find(m => m.is_loaded).name}</strong> is loaded on GPU</p>
+              ) : modelLoading ? (
                 <p style={{color: '#ffaa00'}}>⏳ <strong>Loading model...</strong> Please wait 1-2 minutes</p>
               ) : (
                 <p className="no-model">🔴 No model loaded - Select and load a model below</p>
