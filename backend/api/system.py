@@ -126,19 +126,42 @@ async def get_system_health():
     try:
         db_path = Path("/root/MasterCoderAI/backend/data.db")
         if db_path.exists():
-            # Check if database has tables
+            # Check if database has tables AND users
             conn = sqlite3.connect(str(db_path))
             cursor = conn.cursor()
             cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
             tables = cursor.fetchall()
+            
+            # Check if users table has data
+            user_count = 0
+            chat_count = 0
+            try:
+                cursor.execute("SELECT COUNT(*) FROM users")
+                user_count = cursor.fetchone()[0]
+                cursor.execute("SELECT COUNT(*) FROM chats")
+                chat_count = cursor.fetchone()[0]
+            except:
+                pass
+            
             conn.close()
             
             if len(tables) > 0:
-                health_status["database"] = {
-                    "status": "ok",
-                    "message": f"Connected ({len(tables)} tables)",
-                    "tables": [t[0] for t in tables]
-                }
+                if user_count > 0:
+                    health_status["database"] = {
+                        "status": "ok",
+                        "message": f"{user_count} users, {chat_count} chats",
+                        "tables": [t[0] for t in tables],
+                        "user_count": user_count,
+                        "chat_count": chat_count
+                    }
+                else:
+                    health_status["database"] = {
+                        "status": "error",
+                        "message": "NO USERS! Click Initialize!",
+                        "tables": [t[0] for t in tables],
+                        "user_count": 0
+                    }
+                    health_status["init_required"] = True
             else:
                 health_status["database"] = {
                     "status": "warning",

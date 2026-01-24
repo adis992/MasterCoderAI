@@ -60,6 +60,30 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   // Always get fresh token from localStorage
   const getConfig = () => {
     const token = localStorage.getItem('token');
+    
+    // Check if token is expired
+    if (token) {
+      try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(window.atob(base64));
+        
+        // Check expiration (exp is in seconds, Date.now() is in milliseconds)
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          console.error('❌ TOKEN EXPIRED! Logging out...');
+          localStorage.clear();
+          alert('⏰ Your session has expired. Please login again.');
+          window.location.href = '/login';
+          return { headers: {} };
+        }
+      } catch (e) {
+        console.error('❌ Invalid token format!', e);
+        localStorage.clear();
+        window.location.href = '/login';
+        return { headers: {} };
+      }
+    }
+    
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 

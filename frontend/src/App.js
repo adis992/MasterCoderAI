@@ -36,17 +36,26 @@ function App() {
   }, [token]);
 
   const login = (newToken) => {
+    // Prvo OČISTI sve stare podatke
+    localStorage.clear();
+    // Onda spremi NOVI token
     localStorage.setItem('token', newToken);
     setToken(newToken);
+    console.log('✅ NEW TOKEN SAVED:', newToken.substring(0, 30) + '...');
   };
 
   const logout = useCallback(() => {
-    localStorage.removeItem('token');
+    // HARD CLEAR - obriši SVE iz localStorage
+    localStorage.clear();
     setToken(null);
     setUser(null);
     if (inactivityTimeoutRef.current) {
       clearTimeout(inactivityTimeoutRef.current);
     }
+    // Force reload da se sve resetuje
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 100);
   }, []);
 
   // Auto-logout after 30 minutes of inactivity
