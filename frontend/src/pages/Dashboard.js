@@ -735,16 +735,25 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
     
     const lastChat = chatHistory[0]; // First item (since array is reversed in display)
-    if (!lastChat.message) return;
+    if (!lastChat.message) {
+      alert('❌ Cannot regenerate - message is empty!');
+      return;
+    }
     
-    // Remove last chat and resend the message
-    setChatHistory(prev => prev.slice(1));
-    setMessage(lastChat.message);
-    
-    // Wait a moment then send
-    setTimeout(() => {
-      sendMessage();
-    }, 200);
+    try {
+      // Remove last chat and resend the message
+      setChatHistory(prev => prev.slice(1));
+      setMessage(lastChat.message);
+      
+      alert('🔄 Regenerating response...');
+      
+      // Wait a moment then send
+      setTimeout(() => {
+        sendMessage();
+      }, 200);
+    } catch (err) {
+      alert('❌ Failed to regenerate: ' + err.message);
+    }
   };
 
   const copyMessage = (text) => {
@@ -832,20 +841,27 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     setChatHistory(prev => prev.map(c => 
       c.id === chatId ? { ...c, rating } : c
     ));
+    console.log(`✅ Rated message ${chatId} with ${rating} stars`);
   };
 
   const downloadChat = () => {
-    const chatText = chatHistory.map(chat => 
-      `[${new Date(chat.timestamp).toLocaleString()}]\nYou: ${chat.message}\nAI: ${chat.response}\n\n`
-    ).reverse().join('');
-    
-    const blob = new Blob([chatText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    try {
+      const chatText = chatHistory.map(chat => 
+        `[${new Date(chat.timestamp).toLocaleString()}]\nYou: ${chat.message}\nAI: ${chat.response}\n\n`
+      ).reverse().join('');
+      
+      const blob = new Blob([chatText], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `chat-history-${new Date().toISOString().split('T')[0]}.txt`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      setTimeout(() => alert('✅ Chat downloaded successfully!'), 200);
+    } catch (err) {
+      alert('❌ Failed to download chat: ' + err.message);
+    }
   };
 
   const updateSettings = async (newSettings) => {
@@ -1226,16 +1242,22 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   {/* EXPORT Button na dnu */}
                   <button
                     onClick={() => {
-                      const chatText = allUserChats.map(c => 
-                        `[${new Date(c.timestamp).toLocaleString()}] ${c.username}:\\nQ: ${c.message}\\nA: ${c.response}\\n\\n`
-                      ).join('');
-                      const blob = new Blob([chatText], { type: 'text/plain' });
-                      const url = URL.createObjectURL(blob);
-                      const a = document.createElement('a');
-                      a.href = url;
-                      a.download = `all-chats-${new Date().toISOString().split('T')[0]}.txt`;
-                      a.click();
-                      URL.revokeObjectURL(url);
+                      try {
+                        const chatText = allUserChats.map(c => 
+                          `[${new Date(c.timestamp).toLocaleString()}] ${c.username}:\\nQ: ${c.message}\\nA: ${c.response}\\n\\n`
+                        ).join('');
+                        const blob = new Blob([chatText], { type: 'text/plain' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `all-chats-${new Date().toISOString().split('T')[0]}.txt`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        
+                        setTimeout(() => alert(`✅ Exported ${allUserChats.length} chats successfully!`), 200);
+                      } catch (err) {
+                        alert('❌ Failed to export chats: ' + err.message);
+                      }
                     }}
                     disabled={allUserChats.length === 0}
                     style={{
@@ -1269,9 +1291,13 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 <div style={{display: 'flex', gap: '10px', marginLeft: 'auto', alignItems: 'center'}}>
                   <button 
                     onClick={() => {
-                      setChatHistory([]);
-                      localStorage.removeItem('chatHistory');
-                      alert('✨ New chat started!');
+                      try {
+                        setChatHistory([]);
+                        localStorage.removeItem('chatHistory');
+                        alert('✅ New chat started!');
+                      } catch (err) {
+                        alert('❌ Failed to start new chat: ' + err.message);
+                      }
                     }} 
                     className="btn-small" 
                     title="New chat"
