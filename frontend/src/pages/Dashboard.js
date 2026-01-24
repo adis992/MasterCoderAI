@@ -41,8 +41,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [allUserChats, setAllUserChats] = useState([]); // 📝 SVA ADMIN CHAT HISTORIJA
   const [message, setMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [webSearchActive, setWebSearchActive] = useState(false); // 🔍 WEB SEARCH LOADING
   const [isInitialized, setIsInitialized] = useState(false); // ⚡ MAIN INITIALIZATION FLAG
   const [showRating, setShowRating] = useState(null); // ID chata koji prikazuje rating zvjezdice
+  const [forceLanguage, setForceLanguage] = useState('auto'); // 🌐 Force AI response language
   
   // STARTUP INITIALIZATION
   const [initStatus, setInitStatus] = useState({
@@ -220,7 +222,14 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   }, [chatHistory]);
 
   useEffect(() => {
-    // ⚡ STARTUP INITIALIZATION - UVIJEK IZNOVA (nema sessionStorage)!
+    // ⚡ STARTUP INITIALIZATION - ALI SAMO AKO JOŠ NIJE!
+    // Provjeri sessionStorage da vidimo jesmo li već inicijalizirali ovu sesiju
+    const sessionInitialized = sessionStorage.getItem('dashboardInitialized');
+    if (sessionInitialized === 'true' && isInitialized) {
+      console.log('✅ Already initialized this session, skipping re-init');
+      return; // NE INICIJALIZIRAJ PONOVO!
+    }
+    
     console.log('🚀 Starting Dashboard initialization...');
     
     // Load cached GPU info immediately (before init)
@@ -325,6 +334,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         // ✅ INITIALIZATION COMPLETE!
         console.log('✅ Dashboard initialization COMPLETE!');
         setIsInitialized(true); // ⚡ ENABLE monitoring loops!
+        sessionStorage.setItem('dashboardInitialized', 'true'); // 💾 Mark as initialized for this session!
         
         // Done! Show dashboard
         setTimeout(() => setLoading(false), 500);
@@ -588,6 +598,11 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     try {
       setChatLoading(true);
       
+      // 🔍 Check if web search is enabled
+      if (systemSettings.enable_dark_web_search) {
+        setWebSearchActive(true);
+      }
+      
       // Get fresh token
       const token = localStorage.getItem('token');
       if (!token) {
@@ -604,6 +619,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         message: msgToSend.trim(),
         save_to_history: true
       };
+      
+      // 🌐 Add language forcing if set
+      if (forceLanguage !== 'auto') {
+        const languageInstructions = {
+          hr: ' [IMPORTANT: Respond ONLY in Croatian language (hrvatski)]',
+          en: ' [IMPORTANT: Respond ONLY in English language]',
+          de: ' [IMPORTANT: Respond ONLY in German language (Deutsch)]',
+          es: ' [IMPORTANT: Respond ONLY in Spanish language (Español)]'
+        };
+        requestData.message += languageInstructions[forceLanguage] || '';
+      }
       
       // Add image if uploaded
       if (uploadedImage) {
@@ -673,13 +699,52 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       alert(`❌ Chat Error: ${errorMsg}`);
     } finally {
       setChatLoading(false);
+      setWebSearchActive(false); // Turn off web search indicator
     }
   };
 
   const clearChat = () => {
     if (window.confirm('🗑️ Clear all chat history? This cannot be undone!')) {
       setChatHistory([]);
+      localStorage.removeItem('chatHistory');
     }
+  };
+
+  // 🗑️ CLEAR ALL CHATS (from database)
+  const clearAllChats = async () => {
+    if (!window.confirm('⚠️ DELETE ALL CHATS from database? This CANNOT be undone!')) return;
+    if (!window.confirm('Are you ABSOLUTELY SURE? This will delete EVERYTHING!')) return;
+    
+    try {
+      await axios.delete(`${apiUrl}/admin/chats/all`, getConfig());
+      setChatHistory([]);
+      setAllUserChats([]);
+      localStorage.removeItem('chatHistory');
+      alert('✅ All chats deleted from database!');
+      loadAdminData();
+    } catch (err) {
+      alert('❌ Failed to delete chats: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  // 🔄 REGENERATE last response
+  const regenerateLastResponse = async () => {
+    if (chatHistory.length === 0) {
+      alert('⚠️ No messages to regenerate!');
+      return;
+    }
+    
+    const lastChat = chatHistory[0]; // First item (since array is reversed in display)
+    if (!lastChat.message) return;
+    
+    // Remove last chat and resend the message
+    setChatHistory(prev => prev.slice(1));
+    setMessage(lastChat.message);
+    
+    // Wait a moment then send
+    setTimeout(() => {
+      sendMessage();
+    }, 200);
   };
 
   const copyMessage = (text) => {
@@ -787,8 +852,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     try {
       await axios.put(`${apiUrl}/user/settings`, newSettings, getConfig());
       setSettings(prev => ({ ...prev, ...newSettings }));
+      alert('✅ AI Settings saved successfully!');
     } catch (err) {
       console.error('Error updating settings:', err);
+      alert('❌ Failed to save AI settings: ' + (err.response?.data?.detail || err.message));
     }
   };
 
@@ -1083,7 +1150,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                           <div 
                             key={chat.id || idx}
                             onClick={() => {
-                              // Učitaj ovaj chat u glavni chat area
+                              // CLEAR trenutni chat i učitaj samo ovaj novi!
                               const newChat = {
                                 id: Date.now(),
                                 message: chat.message,
@@ -1092,7 +1159,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                                 timestamp: chat.timestamp,
                                 rating: 0
                               };
-                              setChatHistory(prev => [...prev, newChat]);
+                              setChatHistory([newChat]); // REPLACE, ne append!
+                              localStorage.setItem('chatHistory', JSON.stringify([newChat]));
                               alert(`💬 Loaded chat from ${chat.username}`);
                             }}
                             style={{
@@ -1209,12 +1277,31 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   >
                     ➕ New
                   </button>
+                  <button 
+                    onClick={regenerateLastResponse} 
+                    className="btn-small" 
+                    disabled={chatHistory.length === 0 || chatLoading} 
+                    title="Regenerate last response"
+                    style={{background: 'linear-gradient(135deg, #f093fb, #f5576c)', color: '#fff'}}
+                  >
+                    🔄
+                  </button>
                   <button onClick={downloadChat} className="btn-small" disabled={chatHistory.length === 0} title="Download chat">
                     💾
                   </button>
-                  <button onClick={clearChat} className="btn-small btn-danger" disabled={chatHistory.length === 0} title="Clear chat">
+                  <button onClick={clearChat} className="btn-small btn-danger" disabled={chatHistory.length === 0} title="Clear current chat">
                     🗑️
                   </button>
+                  {user?.is_admin && (
+                    <button 
+                      onClick={clearAllChats} 
+                      className="btn-small" 
+                      title="DELETE ALL CHATS (Database)"
+                      style={{background: '#ff0000', color: '#fff', fontWeight: 'bold'}}
+                    >
+                      🗑️ ALL
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -1314,6 +1401,81 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   <button className="btn-small btn-danger" onClick={() => setUploadedImage(null)}>❌ Remove</button>
                 </div>
               )}
+
+              {/* 🔍 WEB SEARCH ACTIVE INDICATOR */}
+              {webSearchActive && (
+                <div style={{
+                  padding: '12px',
+                  background: 'linear-gradient(135deg, rgba(0,123,255,0.2), rgba(0,255,65,0.2))',
+                  borderRadius: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid rgba(0,255,65,0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  animation: 'pulse 1.5s infinite'
+                }}>
+                  <span style={{fontSize: '1.2rem'}}>🌐</span>
+                  <div style={{flex: 1}}>
+                    <div style={{fontWeight: 'bold', color: '#00ff41'}}>Web Search Active</div>
+                    <div style={{fontSize: '0.8rem', opacity: 0.8}}>
+                      Searching 100+ pages, analyzing data, preparing best answer...
+                    </div>
+                  </div>
+                  <div style={{
+                    width: '30px',
+                    height: '30px',
+                    border: '3px solid rgba(0,255,65,0.3)',
+                    borderTop: '3px solid #00ff41',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                </div>
+              )}
+
+              {/* 🌐 LANGUAGE & SETTINGS BAR */}
+              <div style={{
+                display: 'flex',
+                gap: '10px',
+                marginBottom: '10px',
+                padding: '8px',
+                background: 'rgba(255,255,255,0.03)',
+                borderRadius: '6px',
+                alignItems: 'center'
+              }}>
+                <span style={{fontSize: '0.85rem', opacity: 0.7}}>🌐 Response Language:</span>
+                <select 
+                  value={forceLanguage} 
+                  onChange={(e) => setForceLanguage(e.target.value)}
+                  style={{
+                    padding: '5px 10px',
+                    background: '#1a1a2e',
+                    color: '#fff',
+                    border: '1px solid #444',
+                    borderRadius: '4px',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  <option value="auto">Auto-detect</option>
+                  <option value="hr">🇭🇷 Force Croatian</option>
+                  <option value="en">🇬🇧 Force English</option>
+                  <option value="de">🇩🇪 Force German</option>
+                  <option value="es">🇪🇸 Force Spanish</option>
+                </select>
+                
+                {systemSettings.enable_dark_web_search && (
+                  <div style={{
+                    marginLeft: 'auto',
+                    padding: '5px 10px',
+                    background: 'rgba(0,255,65,0.1)',
+                    borderRadius: '4px',
+                    fontSize: '0.8rem',
+                    border: '1px solid rgba(0,255,65,0.3)'
+                  }}>
+                    🔍 Web Search: ON
+                  </div>
+                )}
+              </div>
 
               <div className="chat-input-container" style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                 <input

@@ -1,3 +1,11 @@
+# RAR/ZIP Archives - NE PUSHATI NA GIT!
+*.rar
+*.zip
+*.7z
+*.tar.gz
+*.tar
+*.gz
+
 # Python
 __pycache__/
 *.py[cod]

@@ -285,3 +285,10 @@ async def delete_user_chats(user_id: int, current_user=Depends(require_admin)):
     delete_query = chats.delete().where(chats.c.user_id == user_id)
     await database.execute(delete_query)
     return {"message": f"All chats from user {user_id} deleted successfully"}
+
+@router.delete("/chats/all")
+async def delete_all_chats(current_user=Depends(require_admin)):
+    """Delete ALL chats from database (ADMIN ONLY)"""
+    delete_query = chats.delete()
+    result = await database.execute(delete_query)
+    return {"message": "All chats deleted from database", "deleted_count": result}
