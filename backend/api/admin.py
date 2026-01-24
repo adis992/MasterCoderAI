@@ -243,6 +243,30 @@ async def get_all_chats(current_user=Depends(require_admin), limit: int = 100):
     
     return result
 
+@router.get("/chats")
+async def get_all_chats(current_user=Depends(require_admin)):
+    """Get all chats with user info"""
+    query = """
+        SELECT c.id, c.user_id, c.message, c.response, c.model_name, c.timestamp, u.username
+        FROM chats c
+        LEFT JOIN users u ON c.user_id = u.id
+        ORDER BY c.timestamp DESC
+        LIMIT 1000
+    """
+    rows = await database.fetch_all(query)
+    return [
+        {
+            "id": row["id"],
+            "user_id": row["user_id"],
+            "username": row["username"],
+            "message": row["message"][:100] if row["message"] else "",  # First 100 chars
+            "response": row["response"][:100] if row["response"] else "",  # First 100 chars
+            "model_name": row["model_name"],
+            "timestamp": str(row["timestamp"])
+        }
+        for row in rows
+    ]
+
 @router.delete("/chats/{chat_id}")
 async def delete_chat(chat_id: int, current_user=Depends(require_admin)):
     """Delete specific chat"""

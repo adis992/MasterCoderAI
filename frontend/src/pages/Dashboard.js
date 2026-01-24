@@ -24,6 +24,16 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [chatHistory, setChatHistory] = useState([]);
   const [message, setMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  
+  // STARTUP INITIALIZATION
+  const [initStatus, setInitStatus] = useState({
+    database: { done: false, status: 'pending', message: 'Checking database...' },
+    users: { done: false, status: 'pending', message: 'Loading users...' },
+    models: { done: false, status: 'pending', message: 'Scanning models...' },
+    settings: { done: false, status: 'pending', message: 'Loading settings...' },
+    autoload: { done: false, status: 'pending', message: 'Checking auto-load...' }
+  });
+  
   const [settings, setSettings] = useState({
     temperature: 0.7,
     max_tokens: 2048,
@@ -152,11 +162,96 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   }, [chatHistory]);
 
   useEffect(() => {
-    // ⚡ INSTANT UNLOCK - Show dashboard immediately!
-    setLoading(false);
+    // ⚡ STARTUP INITIALIZATION - Step by step
+    const initialize = async () => {
+      try {
+        // STEP 1: Check database
+        setInitStatus(prev => ({ ...prev, database: { done: false, status: 'loading', message: 'Checking database...' }}));
+        const healthRes = await axios.get(`${apiUrl}/system/health`);
+        if (healthRes.data.database.status === 'ok') {
+          setInitStatus(prev => ({ ...prev, database: { done: true, status: 'success', message: `✅ ${healthRes.data.database.user_count} users, ${healthRes.data.database.chat_count} chats` }}));
+        } else {
+          setInitStatus(prev => ({ ...prev, database: { done: true, status: 'error', message: `❌ ${healthRes.data.database.message}` }}));
+          return; // Stop if database is not OK
+        }
+        
+        // STEP 2: Load users (if admin)
+        if (user?.is_admin) {
+          setInitStatus(prev => ({ ...prev, users: { done: false, status: 'loading', message: 'Loading users...' }}));
+          const usersRes = await axios.get(`${apiUrl}/admin/users`, getConfig());
+          setUsers(usersRes.data || []);
+          
+          // ALSO load database tables so they're ready
+          try {
+            const dbTables = {};
+            dbTables.users = Array.isArray(usersRes.data) ? usersRes.data : [];
+            
+            const chatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch(() => ({ data: [] }));
+            dbTables.chats = Array.isArray(chatsRes.data) ? chatsRes.data : [];
+            
+            const sysRes = await axios.get(`${apiUrl}/system/settings`).catch(() => ({ data: {} }));
+            dbTables.system_settings = sysRes.data ? [sysRes.data] : [];
+            
+            setDbTables(dbTables);
+            console.log('✅ Database tables initialized:', Object.keys(dbTables).map(k => `${k}(${dbTables[k].length})`));
+          } catch (e) {
+            console.error('Error loading db tables during init:', e);
+          }
+          
+          setInitStatus(prev => ({ ...prev, users: { done: true, status: 'success', message: `✅ ${usersRes.data?.length || 0} users loaded` }}));
+        } else {
+          setInitStatus(prev => ({ ...prev, users: { done: true, status: 'success', message: '✅ Skipped (not admin)' }}));
+        }
+        
+        // STEP 3: Load models
+        setInitStatus(prev => ({ ...prev, models: { done: false, status: 'loading', message: 'Scanning models...' }}));
+        const modelsRes = await axios.get(`${apiUrl}/ai/models`, getConfig());
+        setModels(modelsRes.data.models || []);
+        setInitStatus(prev => ({ ...prev, models: { done: true, status: 'success', message: `✅ ${modelsRes.data.models?.length || 0} models found` }}));
+        
+        // STEP 4: Load settings
+        setInitStatus(prev => ({ ...prev, settings: { done: false, status: 'loading', message: 'Loading settings...' }}));
+        const settingsRes = await axios.get(`${apiUrl}/system/settings`);
+        const sysSettings = settingsRes.data || {};
+        setSystemSettings(prev => ({ ...prev, ...sysSettings }));
+        setInitStatus(prev => ({ ...prev, settings: { done: true, status: 'success', message: '✅ Settings loaded' }}));
+        
+        // STEP 5: Auto-load model (if enabled)
+        setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: 'Checking auto-load...' }}));
+        if (sysSettings.model_auto_load && sysSettings.auto_load_model_name) {
+          setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: `Loading ${sysSettings.auto_load_model_name}...` }}));
+          try {
+            await axios.post(`${apiUrl}/ai/models/load`, { model_name: sysSettings.auto_load_model_name }, getConfig());
+            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: `✅ Model ${sysSettings.auto_load_model_name} loaded` }}));
+          } catch (err) {
+            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'error', message: `❌ Failed to auto-load model` }}));
+          }
+        } else {
+          setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: '✅ Auto-load disabled' }}));
+        }
+        
+        // Load all other data in background
+        loadData();
+        
+        // Done! Show dashboard
+        setTimeout(() => setLoading(false), 500);
+        
+      } catch (err) {
+        console.error('Initialization error:', err);
+        setInitStatus(prev => {
+          const updated = { ...prev };
+          Object.keys(updated).forEach(key => {
+            if (!updated[key].done) {
+              updated[key] = { done: true, status: 'error', message: '❌ Failed' };
+            }
+          });
+          return updated;
+        });
+        setTimeout(() => setLoading(false), 1000);
+      }
+    };
     
-    // Load data in background
-    loadData();
+    initialize();
     
     // Poll model status every 3 seconds if loading
     const interval = setInterval(async () => {
@@ -237,13 +332,14 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         setSystemSettings(prev => ({ ...prev, ...sysSettingsRes.data }));
       }
 
-      console.log('✅ Dashboard data loaded in parallel!');
+      console.log('✅ Dashboard data loaded:', {
+        models: modelsRes.data.models?.length,
+        chats: historyRes.data?.length,
+        currentModel: currentModelRes.data?.model_name
+      });
 
     } catch (err) {
       console.error('Error loading data:', err);
-    } finally {
-      // ALWAYS unlock UI - model loads in background!
-      setLoading(false);
     }
   };
 
@@ -263,8 +359,35 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       console.log('📊 Stats Response:', statsRes.data);
       console.log('👥 Users Response:', usersRes.data);
       
-      setSystemStats(statsRes.data);
-      setUsers(usersRes.data || []);
+      // Set stats (FORCE update even if empty)
+      if (statsRes.data && Object.keys(statsRes.data).length > 0) {
+        setSystemStats(statsRes.data);
+      } else {
+        // Fetch from health endpoint if stats failed
+        try {
+          const healthRes = await axios.get(`${apiUrl}/system/health`);
+          if (healthRes.data.database) {
+            setSystemStats({
+              total_users: healthRes.data.database.user_count || 0,
+              total_chats: healthRes.data.database.chat_count || 0,
+              cpu_percent: 0,
+              memory_used_gb: 0,
+              disk_used_gb: 0
+            });
+          }
+        } catch (e) {
+          console.error('Health check also failed:', e);
+        }
+      }
+      
+      // Set users (FORCE update)
+      if (usersRes.data && Array.isArray(usersRes.data)) {
+        setUsers(usersRes.data);
+        console.log(`✅ Loaded ${usersRes.data.length} users`);
+      } else {
+        console.warn('⚠️ No users data received');
+        setUsers([]);
+      }
       
       // Load database tables
       loadDbTables();
@@ -277,19 +400,26 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     try {
       const tables = {};
       
-      // Users
+      // Users - koristi ISTU funkciju kao Users tab
       const usersRes = await axios.get(`${apiUrl}/admin/users`, getConfig()).catch(() => ({ data: [] }));
-      tables.users = usersRes.data || [];
+      tables.users = Array.isArray(usersRes.data) ? usersRes.data : [];
+      console.log('📊 Database Browser - Users:', tables.users);
       
       // Chats
-      const chatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch(() => ({ data: [] }));
-      tables.chats = chatsRes.data || [];
+      const chatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch((err) => {
+        console.error('Chats load error:', err);
+        return { data: [] };
+      });
+      tables.chats = Array.isArray(chatsRes.data) ? chatsRes.data : [];
+      console.log('📊 Database Browser - Chats:', tables.chats);
       
       // System Settings
       const sysRes = await axios.get(`${apiUrl}/system/settings`).catch(() => ({ data: {} }));
-      tables.system_settings = [sysRes.data];
+      tables.system_settings = sysRes.data ? [sysRes.data] : [];
+      console.log('📊 Database Browser - Settings:', tables.system_settings);
       
       setDbTables(tables);
+      console.log('✅ Database Browser tables updated:', Object.keys(tables).map(k => `${k}(${tables[k].length})`));
     } catch (err) {
       console.error('Error loading db tables:', err);
     }
@@ -507,8 +637,11 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const updateUser = async (userId, data) => {
     try {
       await axios.put(`${apiUrl}/admin/users/${userId}`, data, getConfig());
+      console.log('✅ User updated! Refreshing both Users and Database views...');
       alert('✅ User updated!');
-      loadAdminData();
+      // Refresh BOTH users list AND database browser
+      await loadAdminData();
+      await loadDbTables();
       setEditingUser(null);
     } catch (err) {
       alert(`❌ Error: ${err.response?.data?.detail || err.message}`);
@@ -519,31 +652,85 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     try {
       await axios.delete(`${apiUrl}/admin/users/${userId}`, getConfig());
+      console.log('✅ User deleted! Refreshing both Users and Database views...');
       alert('✅ User deleted!');
-      loadAdminData();
+      // Refresh BOTH users list AND database browser
+      await loadAdminData();
+      await loadDbTables();
     } catch (err) {
       alert(`❌ Error: ${err.response?.data?.detail || err.message}`);
     }
   };
 
   if (loading) {
+    const totalSteps = Object.keys(initStatus).length;
+    const completedSteps = Object.values(initStatus).filter(s => s.done).length;
+    const progress = (completedSteps / totalSteps) * 100;
+    
     return (
       <div className="loading-screen">
-        <div className="spinner"></div>
-        <h2>🚀 MasterCoderAI</h2>
-        <p>Učitavam sistem...</p>
-        {modelLoading && (
-          <div style={{marginTop: '30px', padding: '20px', background: 'rgba(0,255,65,0.1)', borderRadius: '10px', border: '1px solid #00ff41'}}>
-            <h3 style={{color: '#00ff41', marginBottom: '15px'}}>⚡ MODEL SE UČITAVA NA GPU</h3>
-            <p style={{color: '#fff', fontSize: '14px', marginBottom: '10px'}}>Molim pričekajte 1-2 minute...</p>
-            <div style={{textAlign: 'left', fontFamily: 'monospace', fontSize: '12px', color: '#00ff41'}}>
-              {modelLoadingLogs.map((log, idx) => (
-                <div key={idx}>{log}</div>
-              ))}
-              <span className="blink">_</span>
-            </div>
+        <div style={{maxWidth: '500px', width: '90%'}}>
+          <h2 style={{marginBottom: '30px'}}>🚀 MasterCoderAI</h2>
+          <p style={{marginBottom: '20px', fontSize: '1.1rem'}}>Initializing System...</p>
+          
+          {/* Progress bar */}
+          <div style={{width: '100%', height: '10px', background: 'rgba(255,255,255,0.1)', borderRadius: '5px', marginBottom: '30px', overflow: 'hidden'}}>
+            <div style={{
+              width: `${progress}%`,
+              height: '100%',
+              background: 'linear-gradient(90deg, #00ff41, #00cc33)',
+              transition: 'width 0.3s ease',
+              boxShadow: '0 0 10px rgba(0,255,65,0.5)'
+            }}></div>
           </div>
-        )}
+          
+          <div style={{fontSize: '0.9rem', marginBottom: '10px', textAlign: 'center', color: '#00ff41'}}>
+            {completedSteps} / {totalSteps} steps completed ({Math.round(progress)}%)
+          </div>
+          
+          {/* Initialization steps */}
+          <div style={{textAlign: 'left', background: 'rgba(0,0,0,0.3)', padding: '20px', borderRadius: '10px', border: '1px solid rgba(0,255,65,0.2)'}}>
+            {Object.entries(initStatus).map(([key, value]) => (
+              <div key={key} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                marginBottom: '12px',
+                padding: '8px',
+                background: value.done ? 'rgba(0,255,65,0.05)' : 'transparent',
+                borderRadius: '5px',
+                borderLeft: `3px solid ${value.status === 'success' ? '#00ff41' : value.status === 'error' ? '#ff0040' : value.status === 'loading' ? '#ffaa00' : '#666'}`
+              }}>
+                <div style={{fontSize: '1.2rem', minWidth: '25px'}}>
+                  {value.status === 'success' ? '✅' : value.status === 'error' ? '❌' : value.status === 'loading' ? '⏳' : '⏸️'}
+                </div>
+                <div style={{flex: 1}}>
+                  <div style={{fontWeight: 'bold', textTransform: 'capitalize', marginBottom: '2px'}}>
+                    {key}
+                  </div>
+                  <div style={{fontSize: '0.85rem', opacity: 0.8}}>
+                    {value.message}
+                  </div>
+                </div>
+                {value.status === 'loading' && (
+                  <div className="spinner" style={{width: '20px', height: '20px', borderWidth: '2px'}}></div>
+                )}
+              </div>
+            ))}
+          </div>
+          
+          {modelLoading && (
+            <div style={{marginTop: '20px', padding: '15px', background: 'rgba(0,255,65,0.1)', borderRadius: '8px', border: '1px solid #00ff41'}}>
+              <h4 style={{color: '#00ff41', marginBottom: '10px'}}>⚡ Loading Model to GPU...</h4>
+              <div style={{fontFamily: 'monospace', fontSize: '0.8rem', color: '#00ff41', maxHeight: '150px', overflowY: 'auto'}}>
+                {modelLoadingLogs.map((log, idx) => (
+                  <div key={idx}>{log}</div>
+                ))}
+                <span className="blink">_</span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
