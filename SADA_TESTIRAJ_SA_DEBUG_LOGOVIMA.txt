@@ -1,0 +1,29 @@
+✅ FRONTEND JE RECOMPILAN - SADA IMAMO DEBUG LOGOVE!
+
+Trebam da testirate sada:
+
+KORAK 1: Refresh http://localhost:3000 (trebam novi page load)
+
+KORAK 2: Login sa admin/admin123
+
+KORAK 3: Otvorite F12 Developer Tools i klikni Console tab
+
+KORAK 4: Testiraj SAVE AI Settings:
+   - Idi u Settings tab
+   - Promijeni Temperature sa 0.7 na 0.9
+   - Klikni SAVE AI Settings button
+
+KORAK 5: U Console trebate vidjeti GREEN logove:
+   🔥 DEBUG: updateSettings called with: {temperature: 0.9}
+   🔥 DEBUG: apiUrl: http://localhost:8000
+   🔥 DEBUG: getConfig(): {headers: {...}}
+   🔥 DEBUG: Sending PUT to: http://localhost:8000/user/settings
+   🔥 DEBUG: Response: {...}
+   ✅ AI Settings saved successfully!
+
+KORAK 6: Pošalji mi screenshot Console-a:
+   - Ako vidiš sve GREEN logove = FRONTEND RADI, problem gdje drugdje
+   - Ako vidiš RED error = Problem je u tom erroru
+   - Ako vidiš samo prvi log i onda ništa = Zaustavilo se negdje u API call-u
+
+📸 TREBAM SCREENSHOT od F12 CONSOLE nakon klika na SAVE button!

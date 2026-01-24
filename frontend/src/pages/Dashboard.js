@@ -3,6 +3,8 @@ import axios from 'axios';
 import '../Dashboard.css';
 
 export default function Dashboard({ user, onLogout, apiUrl }) {
+  console.log('🔥 DASHBOARD LOADED - user:', user, 'apiUrl:', apiUrl);
+  
   // 💾 PERSIST STATE - Load from localStorage
   const savedTab = localStorage.getItem('activeTab');
   const savedChats = localStorage.getItem('chatHistory');
@@ -712,17 +714,21 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
 
   // 🗑️ CLEAR ALL CHATS (from database)
   const clearAllChats = async () => {
+    console.log('🔥 DEBUG: clearAllChats called');
     if (!window.confirm('⚠️ DELETE ALL CHATS from database? This CANNOT be undone!')) return;
     if (!window.confirm('Are you ABSOLUTELY SURE? This will delete EVERYTHING!')) return;
     
     try {
-      await axios.delete(`${apiUrl}/admin/chats/all`, getConfig());
+      console.log('🔥 DEBUG: Deleting all chats from:', `${apiUrl}/admin/chats/all`);
+      const response = await axios.delete(`${apiUrl}/admin/chats/all`, getConfig());
+      console.log('🔥 DEBUG: Delete response:', response);
       setChatHistory([]);
       setAllUserChats([]);
       localStorage.removeItem('chatHistory');
       alert('✅ All chats deleted from database!');
       loadAdminData();
     } catch (err) {
+      console.error('❌ ERROR deleting chats:', err);
       alert('❌ Failed to delete chats: ' + (err.response?.data?.detail || err.message));
     }
   };
@@ -865,12 +871,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   };
 
   const updateSettings = async (newSettings) => {
+    console.log('🔥 DEBUG: updateSettings called with:', newSettings);
+    console.log('🔥 DEBUG: apiUrl:', apiUrl);
+    console.log('🔥 DEBUG: getConfig():', getConfig());
     try {
-      await axios.put(`${apiUrl}/user/settings`, newSettings, getConfig());
+      console.log('🔥 DEBUG: Sending PUT to:', `${apiUrl}/user/settings`);
+      const response = await axios.put(`${apiUrl}/user/settings`, newSettings, getConfig());
+      console.log('🔥 DEBUG: Response:', response);
       setSettings(prev => ({ ...prev, ...newSettings }));
       alert('✅ AI Settings saved successfully!');
     } catch (err) {
-      console.error('Error updating settings:', err);
+      console.error('❌ ERROR updating settings:', err);
       alert('❌ Failed to save AI settings: ' + (err.response?.data?.detail || err.message));
     }
   };
@@ -1197,13 +1208,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                               </div>
                               <button 
                                 onClick={async (e) => {
+                                  console.log('🔥 DEBUG: Delete button clicked for chat:', chat.id);
                                   e.stopPropagation(); // PREVENT CARD CLICK!
                                   if (window.confirm('Delete this chat?')) {
                                     try {
-                                      await axios.delete(`${apiUrl}/admin/chats/${chat.id}`, getConfig());
+                                      console.log('🔥 DEBUG: Deleting chat:', chat.id);
+                                      const response = await axios.delete(`${apiUrl}/admin/chats/${chat.id}`, getConfig());
+                                      console.log('🔥 DEBUG: Delete response:', response);
                                       loadAdminData(); // Reload list
                                       alert('✅ Chat deleted!');
                                     } catch (err) {
+                                      console.error('❌ ERROR deleting chat:', err);
                                       alert('❌ Failed to delete chat: ' + (err.response?.data?.detail || err.message));
                                     }
                                   }
@@ -1322,7 +1337,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   </button>
                   {user?.is_admin && (
                     <button 
-                      onClick={clearAllChats} 
+                      onClick={() => {
+                        alert('🔥 CLEAR ALL BUTTON CLICKED!');
+                        clearAllChats();
+                      }}
                       className="btn-small" 
                       title="DELETE ALL CHATS (Database)"
                       style={{background: '#ff0000', color: '#fff', fontWeight: 'bold'}}
@@ -2053,7 +2071,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 cursor: 'pointer',
                 fontSize: '1rem',
                 boxShadow: '0 4px 15px rgba(245, 87, 108, 0.3)'
-              }} onClick={() => updateSettings(settings)}>
+              }} onClick={() => {
+                alert('🔥 SAVE AI SETTINGS CLICKED!');
+                updateSettings(settings);
+              }}>
                 💾 SAVE AI Settings
               </button>
             </div>

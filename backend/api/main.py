@@ -4,8 +4,10 @@ Jednostavan, čist, funkcionalan backend
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import sys
 import os
+from pathlib import Path
 
 # Fix imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -70,9 +72,30 @@ app.include_router(user_router)
 app.include_router(ai_router)
 app.include_router(system_router)
 
-@app.get("/")
-async def root():
-    return {"status": "online", "message": "MasterCoderAI API v2.0"}
+@app.get("/api/status")
+async def api_status():
+    """API endpoint for status - separate from root"""
+    import sys
+    from pathlib import Path
+    
+    # Provjeri modele
+    model_dir = Path("/root/MasterCoderAI/modeli")
+    models = []
+    if model_dir.exists():
+        models = [f.name for f in model_dir.iterdir() if f.suffix in ['.gguf', '.bin', '.pt']]
+    
+    # Provjeri bazu
+    db_path = Path("/root/MasterCoderAI/backend/data.db")
+    db_status = "connected" if db_path.exists() else "not found"
+    
+    return {
+        "python_version": f"{sys.version_info.major}.{sys.version_info.minor}",
+        "python_status": "installed",
+        "models_found": len(models),
+        "models": models,
+        "database_status": db_status,
+        "system_status": "operational"
+    }
 
 @app.get("/health")
 async def health():
