@@ -674,7 +674,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       console.log('📝 NEW CHAT:', newChat);
       console.log('📝 NEW CHAT response field:', newChat.response);
       
-      setChatHistory(prev => [newChat, ...prev]);
+      // Add new chat to END of array so it appears at bottom
+      setChatHistory(prev => [...prev, newChat]);
       setMessage('');
       setUploadedImage(null); // Clear image after sending
       
@@ -854,7 +855,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     try {
       const chatText = chatHistory.map(chat => 
         `[${new Date(chat.timestamp).toLocaleString()}]\nYou: ${chat.message}\nAI: ${chat.response}\n\n`
-      ).reverse().join('');
+      ).join('');
       
       const blob = new Blob([chatText], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -1382,17 +1383,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                             )}
                             <div className="message-content">{chat.message}</div>
                             <div className="message-actions" style={{display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap'}}>
-                              <button onClick={() => copyMessage(chat.message)} className="btn-small" title="Copy">📋</button>
-                              <button onClick={() => editAndResend(chat)} className="btn-small" title="Edit & Resend">✏️</button>
-                              <button onClick={() => deleteMessage(chat.id)} className="btn-small btn-danger" title="Delete">🗑️</button>
+                              <button onClick={() => copyMessage(chat.message)} className="btn-small" title="📋 Kopiraj poruku">📋</button>
+                              <button onClick={() => editAndResend(chat)} className="btn-small" title="✏️ Uredi i pošalji ponovo">✏️</button>
+                              <button onClick={() => deleteMessage(chat.id)} className="btn-small btn-danger" title="🗑️ Obriši ovu poruku">🗑️</button>
                             </div>
                           </div>
                           {/* AI response */}
                           <div className="message message-ai">
                             <div className="message-content">{chat.response}</div>
                             <div className="message-actions" style={{display: 'flex', gap: '5px', marginTop: '5px', flexWrap: 'wrap', alignItems: 'center'}}>
-                              <button onClick={() => copyMessage(chat.response)} className="btn-small" title="Copy">📋</button>
-                              <button onClick={() => reloadAnswer(chat)} className="btn-small" title="Reload Answer">🔄</button>
+                              <button onClick={() => copyMessage(chat.response)} className="btn-small" title="📋 Kopiraj AI odgovor">📋</button>
+                              <button onClick={() => reloadAnswer(chat)} className="btn-small" title="🔄 Generiraj novi odgovor">🔄</button>
                               
                               {/* LIKE button - klik za prikaz rating-a */}
                               <button 
@@ -1402,7 +1403,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                                   background: chat.rating > 0 ? 'rgba(255,215,0,0.2)' : 'transparent',
                                   border: chat.rating > 0 ? '1px solid gold' : '1px solid #666'
                                 }}
-                                title={chat.rating > 0 ? `Rated ${chat.rating}/3` : "Rate this response"}
+                                title={chat.rating > 0 ? `👍 Ocjena ${chat.rating}/3 ⭐` : "👍 Ocijeni ovaj odgovor (klikni)"}
                               >
                                 👍 {chat.rating > 0 && `${chat.rating}/3`}
                               </button>

@@ -440,7 +440,7 @@ class WebSearchRequest(BaseModel):
 
 @router.post("/web-search")
 async def web_search(request: WebSearchRequest, current_user=Depends(get_current_user)):
-    """Search the web using DuckDuckGo"""
+    """Search the web using DuckDuckGo - enhanced for better results"""
     try:
         from ddgs import DDGS
     except ImportError:
@@ -450,9 +450,32 @@ async def web_search(request: WebSearchRequest, current_user=Depends(get_current
         )
     
     try:
-        # Perform DuckDuckGo search
+        # Enhance query for better results
+        enhanced_query = request.query
+        
+        # If asking about current prices/data, remove future dates and add current terms
+        import re
+        from datetime import datetime
+        current_date = datetime.now()
+        
+        # Remove future dates and add "current", "today", "latest" for price queries
+        if any(word in enhanced_query.lower() for word in ['cijena', 'price', 'cost', 'kako', 'koliko']):
+            # Remove specific dates (like 24.1.2026)
+            enhanced_query = re.sub(r'\d{1,2}\.\d{1,2}\.\d{4}', '', enhanced_query)
+            enhanced_query = re.sub(r'\d{4}', '', enhanced_query)
+            enhanced_query += f" current price today {current_date.year}"
+        
+        print(f"🔍 Original query: {request.query}")
+        print(f"🔍 Enhanced query: {enhanced_query}")
+        
+        # Perform DuckDuckGo search with enhanced query
         with DDGS() as ddgs:
-            results = list(ddgs.text(request.query, max_results=5))
+            results = list(ddgs.text(enhanced_query.strip(), max_results=5, region='hr-hr'))
+        
+        # If no good results, try with original query
+        if not results or len(results) < 2:
+            with DDGS() as ddgs:
+                results = list(ddgs.text(request.query, max_results=5, region='hr-hr'))
         
         # Format results
         formatted_results = []
@@ -465,11 +488,14 @@ async def web_search(request: WebSearchRequest, current_user=Depends(get_current
         
         return {
             "query": request.query,
+            "enhanced_query": enhanced_query,
             "results": formatted_results,
+            "total_results": len(formatted_results),
             "timestamp": datetime.now().isoformat()
         }
     
     except Exception as e:
+        print(f"❌ Web search error: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Web search failed: {str(e)}"
