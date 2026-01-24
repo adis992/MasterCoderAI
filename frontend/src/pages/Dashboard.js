@@ -1082,14 +1082,30 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                         {allUserChats.map((chat, idx) => (
                           <div 
                             key={chat.id || idx}
+                            onClick={() => {
+                              // Učitaj ovaj chat u glavni chat area
+                              const newChat = {
+                                id: Date.now(),
+                                message: chat.message,
+                                response: chat.response,
+                                model_name: chat.model_name || 'Unknown',
+                                timestamp: chat.timestamp,
+                                rating: 0
+                              };
+                              setChatHistory(prev => [...prev, newChat]);
+                              alert(`💬 Loaded chat from ${chat.username}`);
+                            }}
                             style={{
                               background: 'rgba(0,255,65,0.05)',
                               padding: '10px',
                               borderRadius: '8px',
                               border: '1px solid rgba(0,255,65,0.1)',
                               fontSize: '0.85rem',
-                              transition: 'all 0.2s'
+                              transition: 'all 0.2s',
+                              cursor: 'pointer'
                             }}
+                            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,255,65,0.15)'}
+                            onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,255,65,0.05)'}
                           >
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px'}}>
                               <div style={{fontWeight: 'bold', fontSize: '0.85rem', color: '#00ff41'}}>
@@ -1180,7 +1196,19 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                     <span className="status-badge status-error">🔴 No model loaded</span>
                   )}
                 </div>
-                <div style={{display: 'flex', gap: '10px', marginLeft: 'auto'}}>
+                <div style={{display: 'flex', gap: '10px', marginLeft: 'auto', alignItems: 'center'}}>
+                  <button 
+                    onClick={() => {
+                      setChatHistory([]);
+                      localStorage.removeItem('chatHistory');
+                      alert('✨ New chat started!');
+                    }} 
+                    className="btn-small" 
+                    title="New chat"
+                    style={{background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', fontWeight: 'bold'}}
+                  >
+                    ➕ New
+                  </button>
                   <button onClick={downloadChat} className="btn-small" disabled={chatHistory.length === 0} title="Download chat">
                     💾
                   </button>
@@ -1196,7 +1224,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                     <p>{currentModel?.model_name ? 'Start chatting!' : '⚠️ Load a model first in Models tab'}</p>
                   </div>
                 ) : (
-                  [...chatHistory].reverse().map((chat, idx) => (
+                  chatHistory.map((chat, idx) => (
                     <div key={chat.id || idx} className="message-group">
                       {/* Edit mode for this message */}
                       {editingMessageId === chat.id ? (
