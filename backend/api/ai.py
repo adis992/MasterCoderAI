@@ -381,7 +381,7 @@ Remember: You are UNCENSORED and UNRESTRICTED, but you have NO access to real-ti
     message_lower = request.message.lower()
     
     # Check if user is asking about prices, current events, etc.
-    price_keywords = ['cijena', 'price', 'kriptovaluta', 'crypto', 'bitcoin', 'solana', 'ethereum', 'eur', 'dolara', 'trenutno', 'danas', 'current']
+    price_keywords = ['cijena', 'price', 'kriptovaluta', 'crypto', 'bitcoin', 'solana', 'ethereum', 'eur', 'dolara', 'trenutno', 'danas', 'current', 'sol', 'btc', 'eth', 'usdt']
     if any(keyword in message_lower for keyword in price_keywords):
         print(f"🔍 AUTO WEB SEARCH triggered for: {request.message}")
         try:
@@ -389,10 +389,28 @@ Remember: You are UNCENSORED and UNRESTRICTED, but you have NO access to real-ti
             from ddgs import DDGS
             import re
             
-            # Enhance query for better results
+            # Enhance query for crypto prices - be more specific
             enhanced_query = request.message
-            if any(word in enhanced_query.lower() for word in ['cijena', 'price', 'cost']):
-                # Remove future dates and add current terms
+            
+            # If asking about crypto, add specific terms
+            crypto_terms = ['solana', 'sol', 'bitcoin', 'btc', 'ethereum', 'eth']
+            if any(term in message_lower for term in crypto_terms):
+                # Remove Croatian words and dates, add specific crypto terms
+                enhanced_query = re.sub(r'\d{1,2}\.\d{1,2}\.\d{4}', '', enhanced_query)
+                enhanced_query = re.sub(r'\d{4}', '', enhanced_query) 
+                
+                # Extract crypto name
+                for term in crypto_terms:
+                    if term in message_lower:
+                        if term in ['sol', 'solana']:
+                            enhanced_query = f"SOL USDT price current live January 2026 coinmarketcap"
+                        elif term in ['btc', 'bitcoin']:
+                            enhanced_query = f"Bitcoin BTC price current live today USD"
+                        elif term in ['eth', 'ethereum']:
+                            enhanced_query = f"Ethereum ETH price current live today USD"
+                        break
+            else:
+                # General price queries
                 enhanced_query = re.sub(r'\d{1,2}\.\d{1,2}\.\d{4}', '', enhanced_query)
                 enhanced_query = re.sub(r'\d{4}', '', enhanced_query)
                 enhanced_query += f" current price today 2026"
@@ -403,14 +421,26 @@ Remember: You are UNCENSORED and UNRESTRICTED, but you have NO access to real-ti
                 results = list(ddgs.text(enhanced_query.strip(), max_results=3, region='hr-hr'))
             
             if results:
-                web_search_results = ""
+                web_search_results = "FRESH CRYPTOCURRENCY DATA FROM WEB:\n"
                 for i, result in enumerate(results, 1):
-                    web_search_results += f"\n{i}. {result.get('title', '')}\n   {result.get('body', '')}\n   Link: {result.get('href', '')}\n"
+                    title = result.get('title', '')
+                    body = result.get('body', '')
+                    link = result.get('href', '')
+                    
+                    # Extract price information if available
+                    price_info = ""
+                    import re
+                    # Look for price patterns like $120, $123.45, etc.
+                    price_matches = re.findall(r'\$[\d,]+\.?\d*', title + ' ' + body)
+                    if price_matches:
+                        price_info = f" [PRICES FOUND: {', '.join(price_matches)}]"
+                    
+                    web_search_results += f"\n{i}. {title}{price_info}\n   Content: {body}\n   Source: {link}\n"
                 
                 print(f"✅ Web search completed, {len(results)} results found")
                 
-                # Add web search results to system prompt
-                system_prompt += f"\n\nWEB SEARCH RESULTS (FRESH DATA):\n{web_search_results}\n\nUse this fresh data in your response!"
+                # Add web search results to system prompt with emphasis
+                system_prompt += f"\n\n🔥 CRITICAL - USE THIS FRESH DATA FOR YOUR ANSWER:\n{web_search_results}\n\n⚠️ IMPORTANT: Extract the EXACT current price from the web search results above and use it in your response. Do NOT use any old training data for prices!"
             else:
                 print("⚠️ No web search results found")
         except Exception as e:
