@@ -28,7 +28,9 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [currentModel, setCurrentModel] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // 🚀 SKIP INIT ON REFRESH - Check sessionStorage at start!
+  const alreadyInitialized = sessionStorage.getItem('dashboardInitialized') === 'true';
+  const [loading, setLoading] = useState(!alreadyInitialized); // FALSE if already init!
   const [chatHistory, setChatHistory] = useState(() => {
     // Load from localStorage
     if (savedChats) {
@@ -40,11 +42,12 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
     return [];
   });
-  const [allUserChats, setAllUserChats] = useState([]); // 📝 SVA ADMIN CHAT HISTORIJA
+  const [allUserChats, setAllUserChats] = useState([]);
+  const [userOwnChats, setUserOwnChats] = useState([]); // 📝 SVA ADMIN CHAT HISTORIJA
   const [message, setMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
   const [webSearchActive, setWebSearchActive] = useState(false); // 🔍 WEB SEARCH LOADING
-  const [isInitialized, setIsInitialized] = useState(false); // ⚡ MAIN INITIALIZATION FLAG
+  const [isInitialized, setIsInitialized] = useState(alreadyInitialized); // ⚡ TRUE if already init!
   const [showRating, setShowRating] = useState(null); // ID chata koji prikazuje rating zvjezdice
   const [forceLanguage, setForceLanguage] = useState('auto'); // 🌐 Force AI response language
   
@@ -76,6 +79,13 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [modelLoading, setModelLoading] = useState(false);
   const [modelLoadingLogs, setModelLoadingLogs] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Tasks state
+  const [tasks, setTasks] = useState([]);
+  const [taskUrl, setTaskUrl] = useState('');
+  const [taskType, setTaskType] = useState('github_train');
+  const [taskDescription, setTaskDescription] = useState('');
+  const [taskStatus, setTaskStatus] = useState('idle'); // idle, running, completed, error
   
   // System Health Status Panel
   const [systemHealth, setSystemHealth] = useState(null);
@@ -226,10 +236,12 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   useEffect(() => {
     // ⚡ STARTUP INITIALIZATION - ALI SAMO AKO JOŠ NIJE!
     // Provjeri sessionStorage da vidimo jesmo li već inicijalizirali ovu sesiju
-    const sessionInitialized = sessionStorage.getItem('dashboardInitialized');
-    if (sessionInitialized === 'true' && isInitialized) {
-      console.log('✅ Already initialized this session, skipping re-init');
-      return; // NE INICIJALIZIRAJ PONOVO!
+    if (alreadyInitialized) {
+      console.log('✅ Already initialized this session, skipping init screen!');
+      // Samo učitaj podatke u pozadini bez init screen-a
+      loadData();
+      if (!user?.is_admin) loadUserChats();
+      return; // NE PRIKAZUJ INIT SCREEN!
     }
     
     console.log('🚀 Starting Dashboard initialization...');
@@ -333,6 +345,11 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         console.log('📦 Loading remaining data...');
         await loadData();
         
+        // Load user's own chats if not admin
+        if (!user?.is_admin) {
+          await loadUserChats();
+        }
+        
         // ✅ INITIALIZATION COMPLETE!
         console.log('✅ Dashboard initialization COMPLETE!');
         setIsInitialized(true); // ⚡ ENABLE monitoring loops!
@@ -381,12 +398,34 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
             }, 1000);
             
             loadData(); // Reload all data INCLUDING models list to show "LOADED" status
+          } else if (res.data.status === 'error') {
+            // MODEL LOADING FAILED
+            setModelLoading(false);
+            setModelLoadingLogs(prev => [
+              ...prev,
+              `❌ Loading failed: ${res.data.error || 'Unknown error'}`
+            ]);
+            setTimeout(() => {
+              alert(`❌ Model loading failed!\n\n${res.data.error || 'Unknown error'}`);
+              setModelLoadingLogs([]);
+            }, 500);
           } else if (res.data.status === 'loading') {
-            // Still loading, update logs
-            setModelLoadingLogs(prev => {
+            // Still loading, update logs with GPU memory
+            try {
+              const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
+              const totalUsed = gpuRes.data.gpus?.reduce((sum, gpu) => sum + gpu.memory_used_mb, 0) || 0;
               const time = new Date().toLocaleTimeString();
-              return [...prev, `${time} - Still loading...`].slice(-15); // Keep last 15 logs
-            });
+              setModelLoadingLogs(prev => {
+                const filtered = prev.filter(log => !log.includes('GPU VRAM:') && !log.includes('Still loading'));
+                return [...filtered, `${time} - Still loading... 💾 GPU VRAM: ${(totalUsed/1024).toFixed(1)} GB`].slice(-10);
+              });
+            } catch {
+              const time = new Date().toLocaleTimeString();
+              setModelLoadingLogs(prev => {
+                const filtered = prev.filter(log => !log.includes('Still loading'));
+                return [...filtered, `${time} - Still loading...`].slice(-10);
+              });
+            }
           }
         } catch (e) {
           console.error('Error checking model status:', e);
@@ -448,12 +487,31 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
   };
 
+  // ===== LOAD USER'S OWN CHAT HISTORY =====
+  const loadUserChats = async () => {
+    if (!user?.is_admin) {
+      try {
+        const userChatsRes = await axios.get(`${apiUrl}/user/chats`, getConfig());
+        setUserOwnChats(userChatsRes.data || []);
+        console.log('✅ Loaded user own chats:', userChatsRes.data?.length);
+      } catch (err) {
+        console.error('Error loading user chats:', err);
+        setUserOwnChats([]);
+      }
+    }
+  };
+
   const loadAdminData = async () => {
     try {
       // Load ALL admin chats for sidebar
       const allChatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch(() => ({ data: [] }));
       setAllUserChats(allChatsRes.data || []);
       console.log('✅ Loaded all admin chats:', allChatsRes.data?.length);
+      
+      // Load tasks for Tasks tab
+      if (user?.is_admin) {
+        loadTasks();
+      }
       
       const [statsRes, usersRes] = await Promise.all([
         axios.get(`${apiUrl}/admin/stats`, getConfig()).catch((err) => { 
@@ -573,20 +631,19 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       
       setModelLoadingLogs(prev => [...prev, `📡 ${res.data.message}`]);
       setModelLoadingLogs(prev => [...prev, '⏳ Model is loading in background...']);
-      setModelLoadingLogs(prev => [...prev, '💡 You can wait here or use other tabs']);
+      setModelLoadingLogs(prev => [...prev, '💡 External drive models may take 2-5 minutes']);
       
-      // Keep polling GPU VRAM - don't clear interval yet
-      // The useEffect polling /models/current will detect when loading finishes
-      // and show success message
+      // DON'T set modelLoading to false here! Let the polling useEffect handle it
+      // when model status changes to "loaded"
     } catch (err) {
       const errorMsg = err.response?.data?.detail || err.message || 'Unknown error';
       setModelLoadingLogs(prev => [...prev, `❌ Error: ${errorMsg}`]);
+      setModelLoading(false); // Only set false on error
       setTimeout(() => {
         alert(`❌ Error: ${typeof errorMsg === 'object' ? JSON.stringify(errorMsg) : errorMsg}`);
       }, 500);
-    } finally {
-      setModelLoading(false);
     }
+    // NO FINALLY BLOCK - modelLoading stays true until polling detects "loaded" status
   };
 
   const sendMessage = async (customMsg = null) => {
@@ -645,7 +702,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        timeout: 60000 // 60 sec timeout
+        timeout: 300000 // 5 min timeout for slow models
       });
       
       console.log('🔍 CHAT RESPONSE:', response.data);
@@ -887,6 +944,54 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
   };
 
+  // ===== TASK MANAGEMENT FUNCTIONS =====
+  const loadTasks = async () => {
+    try {
+      const response = await axios.get(`${apiUrl}/tasks`, getConfig());
+      setTasks(response.data.tasks || []);
+    } catch (err) {
+      console.error('Failed to load tasks:', err);
+    }
+  };
+
+  const createTask = async () => {
+    if (!taskUrl.trim() || !taskDescription.trim()) {
+      alert('❌ Molimo unesite URL i opis zadatka!');
+      return;
+    }
+
+    try {
+      const taskData = {
+        type: taskType,
+        url: taskUrl,
+        description: taskDescription
+      };
+
+      const response = await axios.post(`${apiUrl}/tasks/create`, taskData, getConfig());
+      alert('✅ Zadatak kreiran uspješno!');
+      
+      setTaskUrl('');
+      setTaskDescription('');
+      setTaskStatus('idle');
+      loadTasks();
+    } catch (err) {
+      console.error('Error creating task:', err);
+      alert('❌ Greška pri kreiranju zadatka: ' + (err.response?.data?.detail || err.message));
+    }
+  };
+
+  const deleteTask = async (taskId) => {
+    if (window.confirm('Sigurno obrisati ovaj zadatak?')) {
+      try {
+        await axios.delete(`${apiUrl}/tasks/${taskId}`, getConfig());
+        alert('✅ Zadatak obrisan!');
+        loadTasks();
+      } catch (err) {
+        alert('❌ Greška: ' + (err.response?.data?.detail || err.message));
+      }
+    }
+  };
+
   const updateSystemSettings = async (newSettings) => {
     try {
       await axios.put(`${apiUrl}/system/settings`, newSettings, getConfig());
@@ -1033,6 +1138,14 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
           <button className={activeTab === 'chat' ? 'tab active' : 'tab'} onClick={() => setActiveTab('chat')}>
             💬 Chat
           </button>
+          
+          {/* USER SETTINGS TAB - For regular users */}
+          {!user?.is_admin && (
+            <button className={activeTab === 'user-settings' ? 'tab active' : 'tab'} onClick={() => setActiveTab('user-settings')}>
+              ⚙️ Settings
+            </button>
+          )}
+          
           {user?.is_admin && (
             <>
               <button className={activeTab === 'models' ? 'tab active' : 'tab'} onClick={() => setActiveTab('models')}>
@@ -1046,6 +1159,9 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
               </button>
               <button className={activeTab === 'system' ? 'tab active' : 'tab'} onClick={() => setActiveTab('system')}>
                 ⚙️ System
+              </button>
+              <button className={activeTab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setActiveTab('tasks')}>
+                🤖 Tasks
               </button>
             </>
           )}
@@ -1153,10 +1269,47 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
           <div className="tab-content">
-            <div style={{display: 'grid', gridTemplateColumns: user?.is_admin ? '250px 1fr' : '1fr', gap: '20px', height: '100%'}}>
+            {/* REGULAR USER FEATURES */}
+            {!user?.is_admin && (
+              <div style={{marginBottom: '20px', padding: '15px', background: 'rgba(0,255,65,0.1)', borderRadius: '10px', border: '1px solid rgba(0,255,65,0.3)'}}>
+                <h3>👤 Dobrodošli, {user?.username}!</h3>
+                <p style={{margin: '5px 0', fontSize: '0.9rem', opacity: 0.8}}>
+                  🎯 **Tip računa:** Korisnik • 💬 **Chat omogućen:** {currentModel?.model_name ? '✅ Da' : '⏳ Čeka učitavanje modela'}
+                </p>
+                
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px', marginTop: '15px'}}>
+                  <div style={{padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', textAlign: 'center'}}>
+                    <h4 style={{color: '#00ff41', margin: '0 0 5px 0'}}>💬 AI Chat</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>Dostupno odmah</p>
+                  </div>
+                  <div style={{padding: '10px', background: 'rgba(255,215,0,0.1)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,215,0,0.3)'}}>
+                    <h4 style={{color: '#ffaa00', margin: '0 0 5px 0'}}>🎨 Themes</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>🚀 Uskoro</p>
+                  </div>
+                  <div style={{padding: '10px', background: 'rgba(255,215,0,0.1)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,215,0,0.3)'}}>
+                    <h4 style={{color: '#ffaa00', margin: '0 0 5px 0'}}>📊 Statistike</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>🚀 Uskoro</p>
+                  </div>
+                  <div style={{padding: '10px', background: 'rgba(255,215,0,0.1)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,215,0,0.3)'}}>
+                    <h4 style={{color: '#ffaa00', margin: '0 0 5px 0'}}>🤖 Personal AI</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>🚀 Uskoro</p>
+                  </div>
+                  <div style={{padding: '10px', background: 'rgba(255,215,0,0.1)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,215,0,0.3)'}}>
+                    <h4 style={{color: '#ffaa00', margin: '0 0 5px 0'}}>📱 Mobile App</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>🚀 Uskoro</p>
+                  </div>
+                  <div style={{padding: '10px', background: 'rgba(255,215,0,0.1)', borderRadius: '8px', textAlign: 'center', border: '1px solid rgba(255,215,0,0.3)'}}>
+                    <h4 style={{color: '#ffaa00', margin: '0 0 5px 0'}}>🔐 API Keys</h4>
+                    <p style={{fontSize: '0.8rem', margin: 0}}>🚀 Uskoro</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            <div style={{display: 'grid', gridTemplateColumns: user?.is_admin ? '250px 1fr' : (userOwnChats.length > 0 ? '220px 1fr' : '1fr'), gap: '20px', height: '100%'}}>
               
-              {/* 📜 CHAT HISTORY SIDEBAR - SAMO ZA ADMINA */}
-              {user?.is_admin && (
+              {/* 📜 CHAT HISTORY SIDEBAR */}
+              {(user?.is_admin || userOwnChats.length > 0) && (
                 <div style={{
                   background: 'rgba(0,0,0,0.3)',
                   borderRadius: '12px',
@@ -1167,14 +1320,18 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   display: 'flex',
                   flexDirection: 'column'
                 }}>
-                  <h3 style={{marginBottom: '15px', fontSize: '1rem'}}>📜 All Chats ({allUserChats.length})</h3>
+                  <h3 style={{marginBottom: '15px', fontSize: '1rem'}}>
+                    📜 {user?.is_admin ? `All Chats (${allUserChats.length})` : `Vaši Chatovi (${userOwnChats.length})`}
+                  </h3>
                   
                   <div style={{flex: 1, overflowY: 'auto', marginBottom: '15px'}}>
-                    {allUserChats.length === 0 ? (
-                      <p style={{fontSize: '0.85rem', opacity: 0.6}}>No chats yet</p>
+                    {(user?.is_admin ? allUserChats : userOwnChats).length === 0 ? (
+                      <p style={{fontSize: '0.85rem', opacity: 0.6}}>
+                        {user?.is_admin ? 'No chats yet' : 'Nema čatova još'}
+                      </p>
                     ) : (
                       <div style={{display: 'flex', flexDirection: 'column', gap: '8px'}}>
-                        {allUserChats.map((chat, idx) => (
+                        {(user?.is_admin ? allUserChats : userOwnChats).map((chat, idx) => (
                           <div 
                             key={chat.id || idx}
                             onClick={() => {
@@ -1189,7 +1346,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                               };
                               setChatHistory([newChat]); // REPLACE, ne append!
                               localStorage.setItem('chatHistory', JSON.stringify([newChat]));
-                              alert(`💬 Loaded chat from ${chat.username}`);
+                              alert(`💬 Učitan chat ${user?.is_admin ? `od ${chat.username}` : 'iz povijesti'}`);
                             }}
                             style={{
                               background: 'rgba(0,255,65,0.05)',
@@ -1205,9 +1362,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                           >
                             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px'}}>
                               <div style={{fontWeight: 'bold', fontSize: '0.85rem', color: '#00ff41'}}>
-                                👤 {chat.username || 'Unknown'}
+                                {user?.is_admin ? `👤 ${chat.username || 'Unknown'}` : '💬 Chat'}
                               </div>
-                              <button 
+                              {user?.is_admin && (
+                                <button 
                                 onClick={async (e) => {
                                   console.log('🔥 DEBUG: Delete button clicked for chat:', chat.id);
                                   e.stopPropagation(); // PREVENT CARD CLICK!
@@ -1236,6 +1394,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                               >
                                 🗑️
                               </button>
+                              )}
                             </div>
                             <div style={{
                               fontSize: '0.75rem',
@@ -1612,7 +1771,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   <option value="">-- Select a model --</option>
                   {models.map((model, idx) => (
                     <option key={idx} value={model.name}>
-                      {model.name} ({model.size_gb || (model.size_mb / 1024).toFixed(1)} GB) - Needs ~{model.gpu_needed_gb || ((model.size_mb + 2048) / 1024).toFixed(1)} GB VRAM
+                      {model.name} ({model.size_gb || (model.size_mb / 1024).toFixed(1)} GB) - {model.directory} - Needs ~{model.gpu_needed_gb || ((model.size_mb + 2048) / 1024).toFixed(1)} GB VRAM
                     </option>
                   ))}
                 </select>
@@ -1657,13 +1816,14 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
             <div className="models-list-card">
               <h3>Available Models ({models.length})</h3>
               {models.length === 0 ? (
-                <p>No models found in /modeli/ folder</p>
+                <p>No models found in model directories (📁 /modeli/ or 💾 /mnt/12T/models/)</p>
               ) : (
                 <table className="users-table">
                   <thead>
                     <tr>
                       <th>Name</th>
                       <th>Size</th>
+                      <th>Directory</th>
                       <th>GPU Needed</th>
                       <th>Status</th>
                     </tr>
@@ -1673,6 +1833,9 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                       <tr key={idx}>
                         <td><strong>{model.name}</strong></td>
                         <td>{model.size_gb || (model.size_mb / 1024).toFixed(1)} GB</td>
+                        <td><code style={{fontSize: '0.8rem', background: 'rgba(0,255,65,0.1)', padding: '2px 4px', borderRadius: '3px'}}>
+                          {model.directory ? model.directory.replace('/root/MasterCoderAI/modeli', '📁 Local').replace('/mnt/12T/models', '💾 External') : '❓'}
+                        </code></td>
                         <td>~{model.gpu_needed_gb || ((model.size_mb + 2048) / 1024).toFixed(1)} GB</td>
                         <td>
                           {model.is_loaded ? (
@@ -1968,6 +2131,253 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 boxShadow: '0 4px 15px rgba(0, 255, 65, 0.3)'
               }} onClick={() => updateSystemSettings(systemSettings)}>
                 💾 SAVE System Settings
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* TASKS TAB */}
+        {activeTab === 'tasks' && user?.is_admin && (
+          <div className="tab-content">
+            <h2>🤖 AI Task Automation</h2>
+            
+            <div className="settings-card">
+              <h3>➕ Kreiranje Novog Zadatka</h3>
+              <div style={{marginBottom: '15px'}}>
+                <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}>Tip Zadatka:</label>
+                <select 
+                  className="model-select" 
+                  value={taskType} 
+                  onChange={(e) => setTaskType(e.target.value)}
+                  style={{marginBottom: '15px'}}
+                >
+                  <option value="github_train">📚 GitHub - Treniraj Model</option>
+                  <option value="website_learn">🌐 Website - Nauči Sadržaj</option>
+                  <option value="document_analyze">📄 Document - Analiziraj</option>
+                  <option value="api_monitor">📊 API - Monitoring</option>
+                </select>
+              </div>
+              
+              <div style={{marginBottom: '15px'}}>
+                <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}>URL / Link:</label>
+                <input 
+                  type="url" 
+                  className="chat-input"
+                  placeholder="https://github.com/username/repo ili https://website.com"
+                  value={taskUrl}
+                  onChange={(e) => setTaskUrl(e.target.value)}
+                  style={{width: '100%', padding: '10px'}}
+                />
+              </div>
+              
+              <div style={{marginBottom: '15px'}}>
+                <label style={{display: 'block', marginBottom: '5px', fontWeight: 'bold'}}>Opis Zadatka:</label>
+                <textarea 
+                  className="chat-input"
+                  placeholder="Opiši što AI treba naučiti ili analizirati..."
+                  value={taskDescription}
+                  onChange={(e) => setTaskDescription(e.target.value)}
+                  style={{width: '100%', minHeight: '80px', padding: '10px'}}
+                />
+              </div>
+              
+              <button 
+                onClick={createTask}
+                className="btn-action"
+                style={{
+                  width: '100%',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: '#fff',
+                  fontWeight: 'bold',
+                  padding: '12px 20px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '1rem'
+                }}
+              >
+                🚀 Kreiraj i Pokreni Zadatak
+              </button>
+            </div>
+
+            {/* TASK LIST */}
+            <div className="settings-card">
+              <h3>📋 Aktivni Zadaci</h3>
+              {tasks.length === 0 ? (
+                <p style={{textAlign: 'center', opacity: 0.6, padding: '20px'}}>
+                  Nema kreiranih zadataka. Kreiraj prvi zadatak gore! 👆
+                </p>
+              ) : (
+                <div style={{display: 'grid', gap: '15px'}}>
+                  {tasks.map((task, idx) => (
+                    <div key={task.id || idx} style={{
+                      background: 'rgba(0,255,65,0.05)',
+                      border: '1px solid rgba(0,255,65,0.2)',
+                      borderRadius: '8px',
+                      padding: '15px'
+                    }}>
+                      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px'}}>
+                        <div>
+                          <h4 style={{color: '#00ff41', margin: '0 0 5px 0'}}>
+                            {task.type === 'github_train' && '📚 GitHub Training'}
+                            {task.type === 'website_learn' && '🌐 Website Learning'}
+                            {task.type === 'document_analyze' && '📄 Document Analysis'}
+                            {task.type === 'api_monitor' && '📊 API Monitoring'}
+                          </h4>
+                          <p style={{fontSize: '0.9rem', margin: '0 0 5px 0'}}>{task.description}</p>
+                          <p style={{fontSize: '0.8rem', opacity: 0.7, margin: 0}}>
+                            <strong>URL:</strong> {task.url}
+                          </p>
+                        </div>
+                        <div style={{display: 'flex', gap: '5px'}}>
+                          <span style={{
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.7rem',
+                            fontWeight: 'bold',
+                            background: task.status === 'completed' ? 'rgba(0,255,0,0.2)' : 
+                                      task.status === 'running' ? 'rgba(255,215,0,0.2)' :
+                                      task.status === 'error' ? 'rgba(255,0,0,0.2)' : 'rgba(100,100,100,0.2)',
+                            color: task.status === 'completed' ? '#00ff00' : 
+                                  task.status === 'running' ? '#ffaa00' :
+                                  task.status === 'error' ? '#ff4444' : '#aaa'
+                          }}>
+                            {task.status === 'completed' && '✅ GOTOVO'}
+                            {task.status === 'running' && '⏳ IZVRŠAVA'}
+                            {task.status === 'error' && '❌ GREŠKA'}
+                            {task.status === 'idle' && '⭕ ČEKA'}
+                          </span>
+                          <button 
+                            onClick={() => deleteTask(task.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ff4444',
+                              cursor: 'pointer',
+                              fontSize: '1rem'
+                            }}
+                            title="Obriši zadatak"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                      {task.result && (
+                        <div style={{
+                          background: 'rgba(0,0,0,0.3)',
+                          padding: '10px',
+                          borderRadius: '5px',
+                          fontSize: '0.8rem',
+                          marginTop: '10px'
+                        }}>
+                          <strong>Rezultat:</strong> {task.result}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* USER SETTINGS TAB - For regular users */}
+        {activeTab === 'user-settings' && !user?.is_admin && (
+          <div className="tab-content">
+            <h2>⚙️ Korisničke Postavke</h2>
+            
+            {/* PROFILE INFO */}
+            <div className="settings-card">
+              <h3>👤 Profil</h3>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div>
+                  <label style={{display: 'block', fontWeight: 'bold', marginBottom: '5px'}}>Korisničko ime:</label>
+                  <input 
+                    type="text" 
+                    value={user?.username || ''} 
+                    disabled 
+                    className="chat-input"
+                    style={{opacity: 0.7}}
+                  />
+                </div>
+                <div>
+                  <label style={{display: 'block', fontWeight: 'bold', marginBottom: '5px'}}>Tip računa:</label>
+                  <input 
+                    type="text" 
+                    value="👤 Korisnik" 
+                    disabled 
+                    className="chat-input"
+                    style={{opacity: 0.7}}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* BASIC THEME SELECTOR FOR USERS */}
+            <div className="settings-card">
+              <h3>🎨 Tema</h3>
+              <select className="model-select" onChange={(e) => {
+                const themes = {
+                  matrix: { bg: '#0d0d0d', accent: '#00ff41' },
+                  cyberpunk: { bg: '#0a0a0a', accent: '#ff00ff' },
+                  dark: { bg: '#121212', accent: '#bb86fc' }
+                };
+                const t = themes[e.target.value] || themes.matrix;
+                document.documentElement.style.setProperty('--primary-bg', t.bg);
+                document.documentElement.style.setProperty('--accent', t.accent);
+                localStorage.setItem('theme', e.target.value);
+              }}>
+                <option value="matrix">🟢 Matrix (zelena)</option>
+                <option value="cyberpunk">🟣 Cyberpunk (ljubičasta)</option>
+                <option value="dark">🔵 Dark (plava)</option>
+              </select>
+            </div>
+
+            {/* COMING SOON FEATURES */}
+            <div className="settings-card" style={{opacity: 0.6, background: 'rgba(255,215,0,0.1)', border: '1px solid rgba(255,215,0,0.3)'}}>
+              <h3>🚀 Uskoro</h3>
+              <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px'}}>
+                <div>
+                  <h4>🔔 Obavještenja</h4>
+                  <p style={{fontSize: '0.8rem', opacity: 0.8}}>Email i push notifikacije</p>
+                </div>
+                <div>
+                  <h4>📱 Mobilna aplikacija</h4>
+                  <p style={{fontSize: '0.8rem', opacity: 0.8}}>iOS i Android podrška</p>
+                </div>
+                <div>
+                  <h4>🎯 Personalizacija</h4>
+                  <p style={{fontSize: '0.8rem', opacity: 0.8}}>Prilagođene AI postavke</p>
+                </div>
+                <div>
+                  <h4>📊 Statistike korištenja</h4>
+                  <p style={{fontSize: '0.8rem', opacity: 0.8}}>Analitika i izvještaji</p>
+                </div>
+              </div>
+            </div>
+
+            {/* USER FEEDBACK */}
+            <div className="settings-card">
+              <h3>💌 Pošaljite Povratnu Informaciju</h3>
+              <textarea 
+                className="chat-input" 
+                placeholder="Što biste htjeli vidjeti u sljedećoj verziji? Vaše mišljenje nam je važno!"
+                style={{width: '100%', minHeight: '100px', marginBottom: '10px'}}
+                id="userFeedback"
+              />
+              <button 
+                className="btn-primary"
+                onClick={() => {
+                  const feedback = document.getElementById('userFeedback').value;
+                  if (feedback.trim()) {
+                    alert('💌 Hvala na povratnoj informaciji! Vaš prijedlog je poslan.');
+                    document.getElementById('userFeedback').value = '';
+                  } else {
+                    alert('❌ Molimo unesite vašu povratnu informaciju.');
+                  }
+                }}
+              >
+                📤 Pošalji Povratnu Informaciju
               </button>
             </div>
           </div>

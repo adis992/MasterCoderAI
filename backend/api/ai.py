@@ -27,6 +27,12 @@ current_model_name = None
 model_loading = False
 model_load_error = None
 
+# Model directories to search
+MODEL_DIRECTORIES = [
+    Path("/root/MasterCoderAI/modeli"),
+    Path("/mnt/12T/models")
+]
+
 # Thread pool for blocking operations
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
@@ -45,9 +51,17 @@ async def auto_load_model_on_startup(model_name: str):
         print("❌ llama-cpp-python not installed, cannot auto-load model")
         return
     
-    model_path = Path(f"/root/MasterCoderAI/modeli/{model_name}")
-    if not model_path.exists():
-        print(f"❌ Auto-load model {model_name} not found at {model_path}")
+    model_path = None
+    # Search for model in all directories
+    for model_dir in MODEL_DIRECTORIES:
+        candidate_path = model_dir / model_name
+        if candidate_path.exists():
+            model_path = candidate_path
+            break
+    
+    if not model_path:
+        searched_dirs = ", ".join(str(d) for d in MODEL_DIRECTORIES)
+        print(f"❌ Auto-load model {model_name} not found in directories: {searched_dirs}")
         return
     
     def load_model_sync():
@@ -57,16 +71,22 @@ async def auto_load_model_on_startup(model_name: str):
             import gc
             gc.collect()
             
+            # Check if model is on external drive
+            is_external = "/mnt/" in str(model_path)
+            
             print(f"🚀 AUTO-LOAD: Loading {model_name} to GPU...")
+            print(f"📂 Path: {model_path}")
+            print(f"💾 External drive: {is_external}")
+            
             loaded = Llama(
                 model_path=str(model_path),
                 n_ctx=8192,
-                n_threads=4,
+                n_threads=8,
                 n_gpu_layers=-1,  # ALL layers to GPU
                 n_batch=512,
                 verbose=True,
                 use_mmap=True,
-                use_mlock=True,
+                use_mlock=not is_external,  # Disable mlock for external drives!
             )
             print(f"✅ AUTO-LOAD: Model {model_name} loaded successfully!")
             current_model = loaded
@@ -102,8 +122,7 @@ class ModelListResponse(BaseModel):
 # ==================== MODEL MANAGEMENT ====================
 @router.get("/models")
 async def list_available_models():
-    """List all available GGUF models with GPU requirements"""
-    model_dir = Path("/root/MasterCoderAI/modeli")
+    """List all available GGUF models from all configured directories with GPU requirements"""
     models = []
     
     # Get available GPU memory
@@ -116,26 +135,29 @@ async def list_available_models():
     except:
         total_gpu_memory_mb = 24000  # Default assume 24GB
     
-    if model_dir.exists():
-        for f in model_dir.iterdir():
-            if f.suffix in ['.gguf', '.bin']:
-                size_mb = f.stat().st_size / (1024 * 1024)
-                size_gb = size_mb / 1024
-                # Estimate GPU memory needed (model size + ~2GB overhead)
-                gpu_needed_mb = size_mb + 2048
-                can_load = gpu_needed_mb <= total_gpu_memory_mb
-                # Check if THIS model is currently loaded
-                is_loaded = (current_model_name == f.name)
-                models.append({
-                    "name": f.name,
-                    "path": str(f),
-                    "size_mb": round(size_mb, 2),
-                    "size_gb": round(size_gb, 2),
-                    "gpu_needed_mb": round(gpu_needed_mb, 0),
-                    "gpu_needed_gb": round(gpu_needed_mb / 1024, 1),
-                    "can_load": can_load,
-                    "is_loaded": is_loaded
-                })
+    # Scan all model directories
+    for model_dir in MODEL_DIRECTORIES:
+        if model_dir.exists():
+            for f in model_dir.iterdir():
+                if f.suffix in ['.gguf', '.bin']:
+                    size_mb = f.stat().st_size / (1024 * 1024)
+                    size_gb = size_mb / 1024
+                    # Estimate GPU memory needed (model size + ~2GB overhead)
+                    gpu_needed_mb = size_mb + 2048
+                    can_load = gpu_needed_mb <= total_gpu_memory_mb
+                    # Check if THIS model is currently loaded
+                    is_loaded = (current_model_name == f.name)
+                    models.append({
+                        "name": f.name,
+                        "path": str(f),
+                        "directory": str(model_dir),
+                        "size_mb": round(size_mb, 2),
+                        "size_gb": round(size_gb, 2),
+                        "gpu_needed_mb": round(gpu_needed_mb, 0),
+                        "gpu_needed_gb": round(gpu_needed_mb / 1024, 1),
+                        "can_load": can_load,
+                        "is_loaded": is_loaded
+                    })
     
     return {"models": models, "total_gpu_memory_mb": total_gpu_memory_mb}
 
@@ -184,10 +206,20 @@ async def load_model(request: ModelLoadRequest, current_user=Depends(get_current
             detail="llama-cpp-python not installed. Run: pip install llama-cpp-python"
         )
     
-    model_path = Path(f"/root/MasterCoderAI/modeli/{model_name}")
+    # Search for model in all directories
+    model_path = None
+    for model_dir in MODEL_DIRECTORIES:
+        candidate_path = model_dir / model_name
+        if candidate_path.exists():
+            model_path = candidate_path
+            break
     
-    if not model_path.exists():
-        raise HTTPException(status_code=404, detail=f"Model {model_name} not found")
+    if not model_path:
+        searched_dirs = ", ".join(str(d) for d in MODEL_DIRECTORIES)
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Model {model_name} not found in directories: {searched_dirs}"
+        )
     
     def load_model_sync():
         """Blocking model load - GPU ONLY, NO CPU FALLBACK"""
@@ -196,6 +228,7 @@ async def load_model(request: ModelLoadRequest, current_user=Depends(get_current
             # Unload previous model safely
             if current_model is not None:
                 try:
+                    del current_model
                     current_model = None
                 except:
                     pass
@@ -203,17 +236,24 @@ async def load_model(request: ModelLoadRequest, current_user=Depends(get_current
             import gc
             gc.collect()
             
+            # Check if model is on external drive (slower loading)
+            is_external = "/mnt/" in str(model_path)
+            
             # GPU ONLY - ALL layers must go to GPU
             print(f"🚀 Loading {model_name} to GPU (ALL layers)...")
+            print(f"📂 Path: {model_path}")
+            print(f"💾 External drive: {is_external}")
+            
+            # For external drives, disable mlock (can cause issues)
             loaded = Llama(
                 model_path=str(model_path),
                 n_ctx=8192,         # Context window
-                n_threads=4,        # Minimal CPU threads (GPU does the work)
+                n_threads=8,        # More threads for external drive loading
                 n_gpu_layers=-1,    # -1 = ALL layers to GPU (MANDATORY)
                 n_batch=512,        # Batch size
                 verbose=True,
                 use_mmap=True,      # Memory mapping
-                use_mlock=True,     # Lock in RAM
+                use_mlock=not is_external,  # Disable mlock for external drives!
             )
             print(f"✅ Model loaded successfully - 100% GPU")
             current_model = loaded

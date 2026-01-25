@@ -31,6 +31,34 @@ class SettingsUpdate(BaseModel):
     system_prompt: Optional[str] = None
     theme: Optional[str] = None
 
+# ==================== USER PROFILE ====================
+@router.get("/profile")
+async def get_user_profile(current_user=Depends(get_current_user)):
+    """Get current user profile information"""
+    user_id = current_user.get("id")
+    username = current_user.get("username")
+    is_admin = current_user.get("is_admin", False)
+    
+    # Get user chat count
+    chat_query = chats.select().where(chats.c.user_id == user_id)
+    user_chats = await database.fetch_all(chat_query)
+    
+    return {
+        "id": user_id,
+        "username": username,
+        "is_admin": is_admin,
+        "chat_count": len(user_chats),
+        "account_type": "Admin" if is_admin else "User",
+        "features": {
+            "ai_chat": True,
+            "model_loading": is_admin,
+            "user_management": is_admin,
+            "system_settings": is_admin,
+            "tasks_automation": is_admin,
+            "database_management": is_admin
+        }
+    }
+
 # ==================== USER SETTINGS ====================
 @router.get("/settings")
 async def get_user_settings(current_user=Depends(get_current_user)):

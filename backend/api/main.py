@@ -17,6 +17,7 @@ from api.admin import router as admin_router
 from api.user import router as user_router
 from api.ai import router as ai_router
 from api.system import router as system_router
+from api.tasks import router as tasks_router
 from db.database import database
 
 app = FastAPI(title="MasterCoderAI API", version="2.0.0")
@@ -71,6 +72,7 @@ app.include_router(admin_router)
 app.include_router(user_router)
 app.include_router(ai_router)
 app.include_router(system_router)
+app.include_router(tasks_router)
 
 @app.get("/api/status")
 async def api_status():

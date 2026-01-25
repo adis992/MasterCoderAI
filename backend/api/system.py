@@ -190,20 +190,34 @@ async def get_system_health():
         }
         health_status["init_required"] = True
     
-    # Check models folder
+    # Check models folders
     try:
-        models_path = Path("/root/MasterCoderAI/modeli")
-        if models_path.exists():
-            model_files = list(models_path.glob("*.gguf"))
+        model_directories = [
+            Path("/root/MasterCoderAI/modeli"),
+            Path("/mnt/12T/models")
+        ]
+        
+        total_models = 0
+        available_dirs = []
+        
+        for model_dir in model_directories:
+            if model_dir.exists():
+                model_files = list(model_dir.glob("*.gguf"))
+                total_models += len(model_files)
+                available_dirs.append(f"{model_dir}: {len(model_files)} models")
+        
+        if total_models > 0:
             health_status["models_folder"] = {
                 "status": "ok",
-                "message": f"Found {len(model_files)} model(s)",
-                "count": len(model_files)
+                "message": f"Found {total_models} model(s) in {len(available_dirs)} directories",
+                "count": total_models,
+                "directories": available_dirs
             }
         else:
             health_status["models_folder"] = {
                 "status": "warning",
-                "message": "Models folder not found"
+                "message": f"No models found in {len(model_directories)} directories",
+                "directories": [str(d) for d in model_directories]
             }
     except Exception as e:
         health_status["models_folder"] = {
