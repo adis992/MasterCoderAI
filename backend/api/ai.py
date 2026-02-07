@@ -424,6 +424,10 @@ async def chat_with_ai(request: ChatRequest, current_user=Depends(get_current_us
         raise HTTPException(status_code=401, detail="Invalid token: missing user ID. Please log out and log in again.")
     
     print(f"✅ User ID extracted: {user_id}")
+    
+    # 🔧 GET USER'S ACTIVE CAPABILITIES
+    user_capabilities = await get_user_capabilities(user_id)
+    print(f"🎯 User capabilities: {user_capabilities}")
     print("="*60 + "\n")
     
     # Check if model is loaded
@@ -821,3 +825,103 @@ async def web_search(request: WebSearchRequest, current_user=Depends(get_current
             status_code=500,
             detail=f"Web search failed: {str(e)}"
         )
+# ==================== MODEL CONFIG APPLICATION ====================
+
+# Global runtime config state
+ACTIVE_CAPABILITIES = {
+    'thinking': True,
+    'memory': True,
+    'web_search': False,
+    'code_execution': False,
+    'file_operations': True,
+    'email_integration': False,
+    'viber_integration': False,
+    'calendar_management': False,
+    'task_management': True,
+    'voice_interaction': False,
+    'image_analysis': False,
+    'document_processing': False
+}
+
+@router.post("/apply-model-config")
+async def apply_model_config(current_user=Depends(get_current_user)):
+    """
+    ⚙️ APPLY MODEL CONFIGURATION
+    Reads user's saved model config and applies it to active runtime
+    """
+    global ACTIVE_CAPABILITIES
+    
+    user_id = current_user.get("id")
+    
+    try:
+        # Get user's model config from database
+        query = """
+            SELECT capabilities, capability_settings FROM user_model_config
+            WHERE user_id = :user_id
+        """
+        config_row = await database.fetch_one(query, {"user_id": user_id})
+        
+        if not config_row:
+            return {
+                "status": "warning",
+                "message": "No config found, using defaults",
+                "active_capabilities": ACTIVE_CAPABILITIES
+            }
+        
+        import json
+        capabilities = json.loads(config_row["capabilities"]) if config_row["capabilities"] else {}
+        settings = json.loads(config_row["capability_settings"]) if config_row["capability_settings"] else {}
+        
+        # Update global active capabilities based on user config
+        updated = []
+        for cap_id, cap_data in capabilities.items():
+            is_enabled = cap_data.get('enabled', False)
+            if cap_id in ACTIVE_CAPABILITIES:
+                old_status = ACTIVE_CAPABILITIES[cap_id]
+                ACTIVE_CAPABILITIES[cap_id] = is_enabled
+                if old_status != is_enabled:
+                    updated.append(f"{cap_id}: {old_status} → {is_enabled}")
+        
+        print(f"🔧 Applied config for user {user_id}")
+        print(f"📋 Changes: {updated if updated else 'No changes'}")
+        
+        return {
+            "status": "success",
+            "message": f"Configuration applied - {len(updated)} capabilities updated",
+            "active_capabilities": ACTIVE_CAPABILITIES,
+            "changes": updated
+        }
+        
+    except Exception as e:
+        print(f"❌ Apply config error: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to apply configuration: {str(e)}"
+        )
+
+async def get_user_capabilities(user_id: int) -> dict:
+    """Helper to get user's active capabilities"""
+    try:
+        query = """
+            SELECT capabilities FROM user_model_config
+            WHERE user_id = :user_id
+        """
+        config_row = await database.fetch_one(query, {"user_id": user_id})
+        
+        if not config_row:
+            return ACTIVE_CAPABILITIES
+        
+        import json
+        capabilities = json.loads(config_row["capabilities"]) if config_row["capabilities"] else {}
+        
+        # Convert to simple enabled/disabled dict
+        user_caps = {}
+        for cap_id in ACTIVE_CAPABILITIES.keys():
+            cap_data = capabilities.get(cap_id, {})
+            user_caps[cap_id] = cap_data.get('enabled', ACTIVE_CAPABILITIES[cap_id])
+        
+        return user_caps
+        
+    except Exception as e:
+        print(f"⚠️ Error getting capabilities: {e}")
+        return ACTIVE_CAPABILITIES

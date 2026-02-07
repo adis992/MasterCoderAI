@@ -13,6 +13,7 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
   const [isExpanded, setIsExpanded] = useState(false);
   const [activeTab, setActiveTab] = useState('current');
   const [showReloadPrompt, setShowReloadPrompt] = useState(false);
+  const [expandedSettings, setExpandedSettings] = useState({}); // Track which capability settings are expanded
   
   // 🎯 TRENUTNE MOGUĆNOSTI - dostupne sada
   const currentCapabilities = [
@@ -379,6 +380,7 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
 
   const saveAllSettings = async () => {
     try {
+      // STEP 1: Save config to database
       const response = await axios.post(
         `${apiUrl}/user/model-config`,
         { config: localConfig },
@@ -386,6 +388,24 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
       );
       
       if (response.status === 200) {
+        console.log('✅ Config saved to database');
+        
+        // STEP 2: Apply config to active runtime
+        try {
+          const applyResponse = await axios.post(
+            `${apiUrl}/ai/apply-model-config`,
+            {},
+            getConfig()
+          );
+          
+          if (applyResponse.status === 200) {
+            console.log('✅ Config applied to runtime:', applyResponse.data);
+            console.log('🔧 Changes:', applyResponse.data.changes);
+          }
+        } catch (applyError) {
+          console.warn('⚠️ Could not apply config immediately:', applyError);
+        }
+        
         // Show reload prompt
         setShowReloadPrompt(true);
       }
@@ -412,6 +432,7 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
     const isEnabled = localConfig.capabilities?.[capability.id] || capability.enabled;
     const category = categories[capability.category] || categories.reasoning;
     const settings = capability.settings || {};
+    const isSettingsExpanded = expandedSettings[capability.id] || false;
     
     return (
       <div key={capability.id} className={`capability-card ${isEnabled ? 'enabled' : 'disabled'}`}>
@@ -428,17 +449,35 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
               )}
             </div>
           </div>
-          <label className="capability-toggle">
-            <input
-              type="checkbox"
-              checked={isEnabled}
-              onChange={() => handleCapabilityToggle(capability.id)}
-            />
-            <span className="toggle-slider"></span>
-          </label>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+            {isEnabled && Object.keys(settings).length > 0 && (
+              <button
+                onClick={() => setExpandedSettings(prev => ({ ...prev, [capability.id]: !prev[capability.id] }))}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: '1px solid rgba(255,255,255,0.2)',
+                  borderRadius: '6px',
+                  padding: '8px 12px',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontSize: '0.9rem'
+                }}
+              >
+                {isSettingsExpanded ? '▼' : '▶'} Advanced
+              </button>
+            )}
+            <label className="capability-toggle">
+              <input
+                type="checkbox"
+                checked={isEnabled}
+                onChange={() => handleCapabilityToggle(capability.id)}
+              />
+              <span className="toggle-slider"></span>
+            </label>
+          </div>
         </div>
         
-        {isEnabled && Object.keys(settings).length > 0 && (
+        {isEnabled && isSettingsExpanded && Object.keys(settings).length > 0 && (
           <div className="capability-settings">
             <h5>⚙️ Advanced Settings</h5>
             {Object.entries(settings).map(([key, value]) => (
@@ -455,6 +494,13 @@ const ModelOptions = ({ modelConfig, onConfigChange, apiUrl, onModelReload }) =>
                     type="number"
                     value={localConfig.capabilitySettings?.[capability.id]?.[key] ?? value}
                     onChange={(e) => handleSettingChange(capability.id, key, parseFloat(e.target.value))}
+                  />
+                ) : Array.isArray(value) ? (
+                  <input
+                    type="text"
+                    value={(localConfig.capabilitySettings?.[capability.id]?.[key] || value).join(', ')}
+                    onChange={(e) => handleSettingChange(capability.id, key, e.target.value.split(',').map(s => s.trim()))}
+                    placeholder="Comma-separated values"
                   />
                 ) : (
                   <input
