@@ -99,11 +99,11 @@ fi
 
 # Test 8: Model status
 echo -n "🧪 8. Testing Model Status... "
-MODEL=$(curl -s http://localhost:8000/ai/model/status -H "Authorization: Bearer $TOKEN" | jq -r '.loaded')
-if [ "$MODEL" = "true" ]; then
-    MODEL_NAME=$(curl -s http://localhost:8000/ai/model/status -H "Authorization: Bearer $TOKEN" | jq -r '.model_name')
+MODEL=$(curl -s http://localhost:8000/ai/models/current -H "Authorization: Bearer $TOKEN" | jq -r '.status')
+if [ "$MODEL" = "loaded" ]; then
+    MODEL_NAME=$(curl -s http://localhost:8000/ai/models/current -H "Authorization: Bearer $TOKEN" | jq -r '.model_name')
     echo "✅ PASS (Model loaded: $MODEL_NAME)"
-elif [ "$MODEL" = "false" ]; then
+elif [ "$MODEL" = "idle" ]; then
     echo "⚠️ No model loaded (OK - can be loaded manually)"
 else
     echo "❌ FAIL (cannot get model status)"

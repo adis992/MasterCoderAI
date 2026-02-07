@@ -10,7 +10,7 @@ API_URL = "http://172.16.20.104:8000"
 
 # Login credentials (admin)
 USERNAME = "admin"
-PASSWORD = "admin"
+PASSWORD = "admin123"
 
 def test_web_search():
     """Test Web Search endpoint"""

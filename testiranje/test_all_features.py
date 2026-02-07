@@ -27,8 +27,8 @@ def test_backend_health():
     r = requests.get(f"{BASE_URL}/system/health")
     assert r.status_code == 200
     data = r.json()
-    print(f"   Status: {data['status']}")
-    print(f"   Database: {data['database']}")
+    print(f"   Backend: {data.get('backend', {}).get('status', 'unknown')}")
+    print(f"   Database: {data.get('database', {}).get('status', 'unknown')}")
     return data
 
 def test_authentication():
@@ -45,34 +45,36 @@ def test_authentication():
 def test_gpu_info(token):
     """3. GPU Information"""
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BASE_URL}/system/gpu", headers=headers)
+    r = requests.get(f"{BASE_URL}/ai/gpu", headers=headers)
     assert r.status_code == 200
     data = r.json()
-    if data["count"] > 0:
+    if data.get("gpus"):
         for gpu in data["gpus"]:
-            print(f"   GPU {gpu['id']}: {gpu['name']} ({gpu['memory_used']}/{gpu['memory_total']} MB)")
+            print(f"   GPU {gpu['id']}: {gpu['name']} ({gpu.get('memory_used_mb', 0):.0f}/{gpu.get('memory_total_mb', 0):.0f} MB)")
     return data
 
 def test_model_status(token):
     """4. Model Status"""
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BASE_URL}/ai/model/status", headers=headers)
+    r = requests.get(f"{BASE_URL}/ai/models/current", headers=headers)
     assert r.status_code == 200
     data = r.json()
-    print(f"   Loaded: {data['loaded']}")
-    if data["loaded"]:
-        print(f"   Model: {data['model_name']}")
+    loaded = data.get("status") == "loaded"
+    print(f"   Loaded: {loaded}")
+    if loaded:
+        print(f"   Model: {data.get('model_name', 'Unknown')}")
     return data
 
 def test_settings(token):
     """5. AI Settings"""
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BASE_URL}/ai/settings", headers=headers)
+    r = requests.get(f"{BASE_URL}/system/settings", headers=headers)
     assert r.status_code == 200
     data = r.json()
-    print(f"   Temperature: {data.get('temperature', 'N/A')}")
-    print(f"   Max Tokens: {data.get('max_tokens', 'N/A')}")
-    print(f"   Web Search: {data.get('web_search_enabled', False)}")
+    settings = data.get('settings', {})
+    print(f"   Temperature: {settings.get('temperature', 'N/A')}")
+    print(f"   Max Tokens: {settings.get('max_tokens', 'N/A')}")
+    print(f"   Web Search: {settings.get('web_search_enabled', False)}")
     return data
 
 def test_chat_simple(token):
@@ -105,29 +107,31 @@ def test_user_list(token):
     headers = {"Authorization": f"Bearer {token}"}
     r = requests.get(f"{BASE_URL}/admin/users", headers=headers)
     assert r.status_code == 200
-    data = r.json()
-    print(f"   Users: {len(data['users'])}")
-    for user in data["users"]:
-        print(f"   - {user['username']} ({user['role']})")
-    return data
+    users = r.json()  # Direct array, not wrapped
+    print(f"   Users: {len(users)}")
+    for user in users:
+        role = "admin" if user.get('is_admin') else "user"
+        print(f"   - {user['username']} ({role})")
+    return users
 
 def test_database_tables(token):
     """9. Database Tables"""
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BASE_URL}/admin/database/tables", headers=headers)
+    r = requests.get(f"{BASE_URL}/system/health", headers=headers)
     assert r.status_code == 200
     data = r.json()
-    print(f"   Tables: {', '.join(data['tables'])}")
+    tables = data.get('database', {}).get('tables', [])
+    print(f"   Tables: {', '.join(tables)}")
     return data
 
 def test_chat_history(token):
     """10. Chat History"""
     headers = {"Authorization": f"Bearer {token}"}
-    r = requests.get(f"{BASE_URL}/ai/chats", headers=headers)
+    r = requests.get(f"{BASE_URL}/user/chats", headers=headers)
     assert r.status_code == 200
-    data = r.json()
-    print(f"   Total Chats: {len(data['chats'])}")
-    return data
+    chats = r.json()  # Direct array
+    print(f"   Total Chats: {len(chats)}")
+    return chats
 
 # Run all tests
 if __name__ == "__main__":

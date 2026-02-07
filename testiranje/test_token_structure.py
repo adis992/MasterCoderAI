@@ -10,7 +10,7 @@ API_URL = "http://localhost:8000"
 print("🔐 Testing login...")
 response = requests.post(f"{API_URL}/auth/login", json={
     "username": "admin",
-    "password": "admin"
+    "password": "admin123"
 })
 
 if response.status_code != 200:

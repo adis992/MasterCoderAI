@@ -11,7 +11,7 @@ print(json.dumps(r.json(), indent=2))
 
 # Login
 print("\n=== Login ===")
-login = requests.post(f'{API}/auth/login', json={'username':'admin','password':'admin'})
+login = requests.post(f'{API}/auth/login', json={'username':'admin','password':'admin123'})
 token = login.json()['access_token']
 print(f"Token: {token[:50]}...")
 

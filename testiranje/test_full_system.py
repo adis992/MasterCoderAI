@@ -10,7 +10,7 @@ API_URL = "http://localhost:8000"
 print("🔐 Step 1: Logging in...")
 login_resp = requests.post(
     f"{API_URL}/auth/login",
-    json={"username": "admin", "password": "admin"}
+    json={"username": "admin", "password": "admin123"}
 )
 token = login_resp.json()["access_token"]
 headers = {"Authorization": f"Bearer {token}"}

@@ -7,7 +7,7 @@ API = "http://localhost:8000"
 
 # 1. Login
 print("🔐 Login...")
-login = requests.post(f"{API}/auth/login", json={"username": "admin", "password": "admin"})
+login = requests.post(f"{API}/auth/login", json={"username": "admin", "password": "admin123"})
 token = login.json()["access_token"]
 headers = {"Authorization": f"Bearer {token}"}
 print(f"✅ Token: {token[:30]}...")

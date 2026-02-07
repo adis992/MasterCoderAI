@@ -12,7 +12,7 @@ print("=" * 60)
 
 # 1. Login
 print("\n[1/4] Login...")
-r = requests.post(f'{API}/auth/login', json={'username': 'admin', 'password': 'admin'})
+r = requests.post(f'{API}/auth/login', json={'username': 'admin', 'password': 'admin123'})
 if r.status_code != 200:
     print(f"❌ Login failed: {r.text}")
     exit(1)

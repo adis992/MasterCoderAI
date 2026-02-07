@@ -6,7 +6,7 @@ import json
 # Login
 login_response = requests.post(
     "http://localhost:8000/auth/login",
-    json={"username": "admin", "password": "admin"}
+    json={"username": "admin", "password": "admin123"}
 )
 token = login_response.json()["access_token"]
 

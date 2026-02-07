@@ -14,9 +14,9 @@ echo "✅ 1. Authentication: OK (Token received)"
 curl -s http://localhost:8000/system/gpu -H "Authorization: Bearer $TOKEN" | jq -r '.gpus[] | "✅ 2. GPU: \(.name) (\(.memory_used)/\(.memory_total) MB)"' | head -1
 
 # Model Status
-MODEL_STATUS=$(curl -s http://localhost:8000/ai/model/status -H "Authorization: Bearer $TOKEN" | jq -r '.loaded')
-if [ "$MODEL_STATUS" = "true" ]; then
-    MODEL_NAME=$(curl -s http://localhost:8000/ai/model/status -H "Authorization: Bearer $TOKEN" | jq -r '.model_name')
+MODEL_STATUS=$(curl -s http://localhost:8000/ai/models/current -H "Authorization: Bearer $TOKEN" | jq -r '.status')
+if [ "$MODEL_STATUS" = "loaded" ]; then
+    MODEL_NAME=$(curl -s http://localhost:8000/ai/models/current -H "Authorization: Bearer $TOKEN" | jq -r '.model_name')
     echo "✅ 3. Model: Loaded ($MODEL_NAME)"
 else
     echo "❌ 3. Model: Not loaded"
