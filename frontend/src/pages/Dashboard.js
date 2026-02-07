@@ -48,7 +48,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [thinkingActive, setThinkingActive] = useState(false); // 🧠 AI razmišlja prije odgovora
   const [thinkingText, setThinkingText] = useState(''); // 💬 Šta AI razmišlja
   const [webSearchActive, setWebSearchActive] = useState(false); // 🔍 WEB SEARCH LOADING
-  const [isInitialized, setIsInitialized] = useState(alreadyInitialized); // ⚡ TRUE if already init!
+  const [isInitialized, setIsInitialized] = useState(false); // ⚡ Server state will determine
   const [showRating, setShowRating] = useState(null); // ID chata koji prikazuje rating zvjezdice
   const [forceLanguage, setForceLanguage] = useState('auto'); // 🌐 Force AI response language
   
