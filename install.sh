@@ -21,7 +21,7 @@ apt-get update -qq
 # Install system dependencies
 echo ""
 echo "[2/7] Installing system dependencies..."
-apt-get install -y -qq python3 python3-pip python3-venv nodejs npm curl sqlite3
+apt-get install -y -qq python3 python3-pip python3-venv nodejs npm curl sqlite3 tesseract-ocr
 
 # Install Python packages globally
 echo ""
@@ -38,7 +38,11 @@ pip3 install --break-system-packages \
     psutil \
     GPUtil \
     requests \
-    python-multipart
+    python-multipart \
+    pillow \
+    pytesseract \
+    numpy \
+    setuptools
 
 # Install llama-cpp-python with CUDA support
 echo ""

@@ -42,12 +42,12 @@ echo -e "${GREEN}  ✓ Server IP: ${SERVER_IP}${NC}"
 # 4. START BACKEND
 echo -e "${YELLOW}[4/5] Pokrećem Backend...${NC}"
 cd /root/MasterCoderAI/backend
-nohup python3 -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload > /tmp/backend.log 2>&1 &
+nohup /root/MasterCoderAI/.venv/bin/python -m uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload > /tmp/backend.log 2>&1 &
 BACKEND_PID=$!
 sleep 3
 
 # Check if backend started
-if curl -s http://localhost:8000/status > /dev/null 2>&1; then
+if curl -s http://localhost:8000/docs > /dev/null 2>&1; then
     echo -e "${GREEN}  ✓ Backend running on http://${SERVER_IP}:8000 (PID: ${BACKEND_PID})${NC}"
 else
     echo -e "${RED}  ✗ Backend failed to start! Check /tmp/backend.log${NC}"
@@ -75,7 +75,7 @@ echo -e "   Frontend: ${BLUE}http://${SERVER_IP}:3000${NC} (PID: ${FRONTEND_PID}
 echo -e "   API URL:  ${BLUE}${REACT_APP_API_URL}${NC}"
 echo ""
 echo -e "${PURPLE}👤 Login Credentials:${NC}"
-echo -e "   Admin:  ${GREEN}username=admin${NC}, ${GREEN}password=admin${NC}"
+echo -e "   Admin:  ${GREEN}username=admin${NC}, ${GREEN}password=admin123${NC}"
 echo -e "   User:   ${GREEN}username=user${NC}, ${GREEN}password=user123${NC}"
 echo ""
 echo -e "${YELLOW}📝 Logs:${NC}"

@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import '../Dashboard.css';
+import ModelOptions from '../components/ModelOptions';
 
 export default function Dashboard({ user, onLogout, apiUrl }) {
   console.log('🔥 DASHBOARD LOADED - user:', user, 'apiUrl:', apiUrl);
@@ -13,7 +14,6 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [activeTab, setActiveTab] = useState(
     savedTab || (user?.is_admin ? 'dashboard' : 'chat')
   );
-  const [systemStatus, setSystemStatus] = useState(null);
   const [systemStats, setSystemStats] = useState(null);
   const [systemSettings, setSystemSettings] = useState({
     chat_enabled: true,
@@ -28,9 +28,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [models, setModels] = useState([]);
   const [selectedModel, setSelectedModel] = useState('');
   const [currentModel, setCurrentModel] = useState(null);
-  // 🚀 SKIP INIT ON REFRESH - Check sessionStorage at start!
-  const alreadyInitialized = sessionStorage.getItem('dashboardInitialized') === 'true';
-  const [loading, setLoading] = useState(!alreadyInitialized); // FALSE if already init!
+  // ⚠️ NE KORISTI sessionStorage - server odlučuje o inicijalizaciji!
+  const [loading, setLoading] = useState(true); // Uvek učitava prvi put
   const [chatHistory, setChatHistory] = useState(() => {
     // Load from localStorage
     if (savedChats) {
@@ -46,6 +45,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [userOwnChats, setUserOwnChats] = useState([]); // 📝 SVA ADMIN CHAT HISTORIJA
   const [message, setMessage] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
+  const [thinkingActive, setThinkingActive] = useState(false); // 🧠 AI razmišlja prije odgovora
+  const [thinkingText, setThinkingText] = useState(''); // 💬 Šta AI razmišlja
   const [webSearchActive, setWebSearchActive] = useState(false); // 🔍 WEB SEARCH LOADING
   const [isInitialized, setIsInitialized] = useState(alreadyInitialized); // ⚡ TRUE if already init!
   const [showRating, setShowRating] = useState(null); // ID chata koji prikazuje rating zvjezdice
@@ -61,6 +62,16 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     autoload: { done: false, status: 'pending', message: 'Checking auto-load...' }
   });
   
+  // 🔐 HASH funkcija za state comparison
+  const generateHash = useCallback((data) => {
+    if (!data) return '';
+    try {
+      return btoa(JSON.stringify(data)).slice(0, 16); // Short hash
+    } catch {
+      return Math.random().toString(36).substring(7);
+    }
+  }, []);
+
   const [settings, setSettings] = useState({
     temperature: 0.7,
     max_tokens: 2048,
@@ -69,7 +80,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     repeat_penalty: 1.1,
     min_p: 0.05,
     presence_penalty: 0,
-    frequency_penalty: 0
+    frequency_penalty: 0,
+    deeplearning_intensity: 0.8,
+    deeplearning_context: 1.0,
+    deeplearning_memory: 0.9,
+    opinion_confidence: 0.7,
+    opinion_creativity: 0.8,
+    opinion_critical_thinking: 0.9,
+    vscode_auto_open: false,
+    vscode_permissions: 'full',
+    auto_web_search: true,
+    web_search_threshold: 0.7
   });
   const [users, setUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
@@ -80,12 +101,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [modelLoadingLogs, setModelLoadingLogs] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   
+  // 🧠 CACHING STATE - Sprečava nepotrebne API pozive
+  const [lastGpuHash, setLastGpuHash] = useState('');
+  const [lastHealthHash, setLastHealthHash] = useState('');
+  const [lastModelHash, setLastModelHash] = useState('');
+  const [lastDataHash, setLastDataHash] = useState('');
+  
   // Tasks state
   const [tasks, setTasks] = useState([]);
   const [taskUrl, setTaskUrl] = useState('');
   const [taskType, setTaskType] = useState('github_train');
   const [taskDescription, setTaskDescription] = useState('');
-  const [taskStatus, setTaskStatus] = useState('idle'); // idle, running, completed, error
   
   // System Health Status Panel
   const [systemHealth, setSystemHealth] = useState(null);
@@ -93,10 +119,18 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   
   // New features - Image upload, Prompt modes, Theme
   const [uploadedImage, setUploadedImage] = useState(null);
+  const [generateImage, setGenerateImage] = useState(false);
   const [selectedPromptMode, setSelectedPromptMode] = useState('master');
   const [customPrompt, setCustomPrompt] = useState('');
   const [editingMessageId, setEditingMessageId] = useState(null);
   const [editingMessageText, setEditingMessageText] = useState('');
+  
+  // 🧠 MODEL CONFIGURATION STATE
+  const [modelConfig, setModelConfig] = useState({
+    capabilities: {},
+    capabilitySettings: {},
+    agentPreferences: {}
+  });
   
   const chatMessagesRef = React.useRef(null);
   const imageInputRef = React.useRef(null);
@@ -131,6 +165,95 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     return { headers: { Authorization: `Bearer ${token}` } };
   };
 
+  // ===== LOAD ALL DATA FUNCTION - MOVED TO TOP TO FIX HOISTING =====
+
+  // 🧿 useCallback za funkcije da se izbegnu dependency issues
+  const loadData = useCallback(async () => {
+    try {
+      // ⚡ PARALLEL LOADING - All requests at once!
+      const [modelsRes, gpuRes, currentModelRes, settingsRes, historyRes, sysSettingsRes, modelConfigRes] = await Promise.all([
+        axios.get(`${apiUrl}/ai/models`, getConfig()).catch(() => ({ data: { models: [] } })),
+        axios.get(`${apiUrl}/ai/gpu`, getConfig()).catch(() => ({ data: { gpus: [] } })),
+        axios.get(`${apiUrl}/ai/models/current`, getConfig()).catch(() => ({ data: {} })),
+        axios.get(`${apiUrl}/user/settings`, getConfig()).catch(() => ({ data: {} })),
+        axios.get(`${apiUrl}/user/chats`, getConfig()).catch(() => ({ data: [] })),
+        axios.get(`${apiUrl}/system/settings`).catch(() => ({ data: {} })),
+        axios.get(`${apiUrl}/user/model-config`, getConfig()).catch(() => ({ data: { config: {} } }))
+      ]);
+
+      // 🔍 CHECK IF DATA CHANGED - Create combined hash
+      const combinedData = {
+        models: modelsRes.data.models,
+        gpu: gpuRes.data,
+        currentModel: currentModelRes.data,
+        settings: settingsRes.data,
+        history: historyRes.data?.length, // Just count for efficiency
+        sysSettings: sysSettingsRes.data,
+        modelConfig: modelConfigRes.data?.config
+      };
+      
+      const newDataHash = generateHash(combinedData);
+      
+      // ⚡ SKIP UPDATE IF NOTHING CHANGED
+      if (newDataHash === lastDataHash) {
+        console.log('✅ Data unchanged, skipping state updates');
+        return;
+      }
+      
+      console.log('🔄 Data changed, updating states...');
+      setLastDataHash(newDataHash);
+
+      // Update all states
+      setModels(modelsRes.data.models || []);
+      setGpuInfo(gpuRes.data);
+      setCurrentModel(currentModelRes.data);
+      setChatHistory(historyRes.data || []);
+
+      // If model is loading, show loading state BUT DON'T BLOCK UI
+      if (currentModelRes.data?.status === 'loading') {
+        setModelLoading(true);
+        setModelLoadingLogs(['🔄 Model is loading in background...', '⏳ Please wait, this may take 1-2 minutes...']);
+      }
+
+      // Merge settings
+      if (settingsRes.data && Object.keys(settingsRes.data).length > 0) {
+        setSettings(prev => ({ ...prev, ...settingsRes.data }));
+      }
+      if (sysSettingsRes.data && Object.keys(sysSettingsRes.data).length > 0) {
+        setSystemSettings(prev => ({ ...prev, ...sysSettingsRes.data }));
+      }
+      
+      // Load model configuration
+      if (modelConfigRes.data?.config) {
+        setModelConfig(modelConfigRes.data.config);
+      }
+
+      console.log('✅ Dashboard data loaded:', {
+        models: modelsRes.data.models?.length,
+        chats: historyRes.data?.length,
+        currentModel: currentModelRes.data?.model_name,
+        modelConfig: modelConfigRes.data?.config ? 'loaded' : 'default'
+      });
+
+    } catch (err) {
+      console.error('Error loading data:', err);
+    }
+  }, [apiUrl, lastDataHash, generateHash]); // Dependencies for useCallback
+
+  // ===== LOAD USER'S OWN CHAT HISTORY - MOVED TO TOP TO FIX HOISTING =====
+  const loadUserChats = useCallback(async () => {
+    if (!user?.is_admin) {
+      try {
+        const userChatsRes = await axios.get(`${apiUrl}/user/chats`, getConfig());
+        setUserOwnChats(userChatsRes.data || []);
+        console.log('✅ Loaded user own chats:', userChatsRes.data?.length);
+      } catch (err) {
+        console.error('Error loading user chats:', err);
+        setUserOwnChats([]);
+      }
+    }
+  }, [apiUrl, user?.is_admin]);
+
   // Real-time GPU monitoring (every 3 seconds) - ALI SAMO NAKON INICIJALIZACIJE!
   useEffect(() => {
     if (!isInitialized) {
@@ -140,20 +263,34 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     
     console.log('✅ GPU monitoring started!');
     
-    // Initial GPU fetch
+    // 🧠 SMART GPU fetch - Only if changed
     const fetchGPU = async () => {
       try {
         const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
-        setGpuInfo(gpuRes.data);
-        // Cache GPU info za F5
-        localStorage.setItem('lastGpuInfo', JSON.stringify(gpuRes.data));
+        const newHash = generateHash(gpuRes.data);
+        
+        // 🔍 COMPARE STATE - Only update if changed!
+        if (newHash !== lastGpuHash) {
+          console.log('🔄 GPU state changed, updating...');
+          setGpuInfo(gpuRes.data);
+          setLastGpuHash(newHash);
+          // Cache GPU info za F5
+          localStorage.setItem('lastGpuInfo', JSON.stringify(gpuRes.data));
+        } else {
+          console.log('✅ GPU state unchanged, skipping update');
+        }
       } catch (e) {
         console.error('GPU monitoring error:', e);
         // Ako fail, probaj učitati iz cache-a
         const cached = localStorage.getItem('lastGpuInfo');
         if (cached) {
           try {
-            setGpuInfo(JSON.parse(cached));
+            const cachedData = JSON.parse(cached);
+            const cachedHash = generateHash(cachedData);
+            if (cachedHash !== lastGpuHash) {
+              setGpuInfo(cachedData);
+              setLastGpuHash(cachedHash);
+            }
           } catch {}
         }
       }
@@ -161,10 +298,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     
     fetchGPU(); // Odmah učitaj
     
-    const gpuInterval = setInterval(fetchGPU, 3000); // Update every 3 seconds
+    const gpuInterval = setInterval(fetchGPU, 15000); // Update every 15 seconds - OPTIMIZED
     
     return () => clearInterval(gpuInterval);
-  }, [isInitialized, apiUrl]); // ⚡ ZAVISI OD isInitialized!
+  }, [isInitialized, apiUrl, lastGpuHash]); // ⚡ ZAVISI OD isInitialized i lastGpuHash!
 
   // Real-time System Health monitoring (every 5 seconds) - NAKON INICIJALIZACIJE
   useEffect(() => {
@@ -173,28 +310,43 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       return;
     }
     
-    loadSystemHealth(); // Initial load
+    const loadSystemHealthCallback = async () => {
+      try {
+        const res = await axios.get(`${apiUrl}/system/health`);
+        const newHash = generateHash(res.data);
+        
+        // 🔍 COMPARE STATE - Only update if changed!
+        if (newHash !== lastHealthHash) {
+          console.log('🔄 Health state changed, updating...');
+          setSystemHealth(res.data);
+          setLastHealthHash(newHash);
+        } else {
+          console.log('✅ Health state unchanged, skipping update');
+        }
+      } catch (e) {
+        console.error('Health check error:', e);
+        const errorData = {
+          database: { status: 'error', message: 'Cannot connect to backend' },
+          backend: { status: 'error', message: 'Backend offline' },
+          init_required: true
+        };
+        const errorHash = generateHash(errorData);
+        
+        if (errorHash !== lastHealthHash) {
+          setSystemHealth(errorData);
+          setLastHealthHash(errorHash);
+        }
+      }
+    };
+    
+    loadSystemHealthCallback(); // Initial load
     
     const healthInterval = setInterval(() => {
-      loadSystemHealth();
-    }, 5000); // Update every 5 seconds
+      loadSystemHealthCallback();
+    }, 20000); // Update every 20 seconds - OPTIMIZED WITH CACHING
     
     return () => clearInterval(healthInterval);
-  }, [isInitialized]); // ⚡ ZAVISI OD isInitialized!
-
-  const loadSystemHealth = async () => {
-    try {
-      const res = await axios.get(`${apiUrl}/system/health`);
-      setSystemHealth(res.data);
-    } catch (e) {
-      console.error('Health check error:', e);
-      setSystemHealth({
-        database: { status: 'error', message: 'Cannot connect to backend' },
-        backend: { status: 'error', message: 'Backend offline' },
-        init_required: true
-      });
-    }
-  };
+  }, [isInitialized, apiUrl, lastHealthHash]); // ⚡ DODANE DEPENDENCIES!
 
   const initializeDatabase = async () => {
     if (!window.confirm('Initialize database? This will create tables and default users.')) {
@@ -205,7 +357,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       setHealthLoading(true);
       const res = await axios.post(`${apiUrl}/system/initialize`, {}, getConfig());
       alert('✅ ' + res.data.message);
-      loadSystemHealth(); // Reload health status
+      // Health status will be updated via monitoring loop
     } catch (err) {
       alert('❌ Error: ' + (err.response?.data?.detail || err.message));
     } finally {
@@ -234,17 +386,10 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   }, [chatHistory]);
 
   useEffect(() => {
-    // ⚡ STARTUP INITIALIZATION - ALI SAMO AKO JOŠ NIJE!
-    // Provjeri sessionStorage da vidimo jesmo li već inicijalizirali ovu sesiju
-    if (alreadyInitialized) {
-      console.log('✅ Already initialized this session, skipping init screen!');
-      // Samo učitaj podatke u pozadini bez init screen-a
-      loadData();
-      if (!user?.is_admin) loadUserChats();
-      return; // NE PRIKAZUJ INIT SCREEN!
-    }
+    // ⚡ PROVERAVA SERVER STATUS - ne koristi sessionStorage!
+    // Server odlučuje o inicijalizaciji
     
-    console.log('🚀 Starting Dashboard initialization...');
+    console.log('🔍 Checking server initialization status...');
     
     // Load cached GPU info immediately (before init)
     const cachedGpu = localStorage.getItem('lastGpuInfo');
@@ -257,10 +402,43 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       }
     }
     
-    const initialize = async () => {
+    const checkServerStatusAndInitialize = async () => {
       try {
         setLoading(true);
         setIsInitialized(false);
+        
+        // FIRST: Check if server is already initialized
+        console.log('🔍 STEP 0: Checking server initialization status...');
+        const serverStatusRes = await axios.get(`${apiUrl}/system/server-status`);
+        const serverStatus = serverStatusRes.data;
+        
+        console.log('Server status:', serverStatus);
+        
+        if (serverStatus.initialized) {
+          console.log('✅ Server already initialized! Loading data quickly...');
+          
+          // Server je vec inicijalizovan, samo ucitaj podatke
+          setInitStatus(prev => ({ 
+            ...prev, 
+            database: { done: true, status: 'success', message: '✅ Database ready' },
+            models: { done: true, status: 'success', message: '✅ Models ready' },
+            gpu: { done: true, status: 'success', message: '✅ GPU ready' },
+            settings: { done: true, status: 'success', message: '✅ Settings ready' },
+            autoload: { done: true, status: 'success', message: '✅ Auto-load ready' }
+          }));
+          
+          // Quick data load bez dugotrajne inicijalizacije
+          await loadData();
+          if (!user?.is_admin) await loadUserChats();
+          
+          setIsInitialized(true);
+          // ⚠️ NE KORISTI sessionStorage - svaki device provjerava server!
+          setTimeout(() => setLoading(false), 500);
+          return;
+        }
+        
+        // Server jos nije inicijalizovan, pokretamo punu inicijalizaciju
+        console.log('🚀 Server not initialized, starting full initialization...');
         
         // STEP 1: Check database
         console.log('📊 STEP 1: Checking database...');
@@ -268,6 +446,13 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         const healthRes = await axios.get(`${apiUrl}/system/health`);
         if (healthRes.data.database.status === 'ok') {
           setInitStatus(prev => ({ ...prev, database: { done: true, status: 'success', message: `✅ ${healthRes.data.database.user_count} users, ${healthRes.data.database.chat_count} chats` }}));
+          
+          // Notify backend that database is ready
+          axios.post(`${apiUrl}/system/update-component-status`, {
+            component: 'database',
+            status: 'success',
+            message: 'Database connected and ready'
+          }).catch(e => console.log('Failed to update database status:', e));
         } else {
           setInitStatus(prev => ({ ...prev, database: { done: true, status: 'error', message: `❌ ${healthRes.data.database.message}` }}));
           setLoading(false); // Stop if database is not OK
@@ -302,43 +487,94 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
           setInitStatus(prev => ({ ...prev, users: { done: true, status: 'success', message: '✅ Skipped (not admin)' }}));
         }
         
-        // STEP 3: Load models
+        // STEP 3: Load models (No auth needed)
         console.log('🤖 STEP 3: Scanning models...');
         setInitStatus(prev => ({ ...prev, models: { done: false, status: 'loading', message: 'Scanning models...' }}));
-        const modelsRes = await axios.get(`${apiUrl}/ai/models`, getConfig());
-        setModels(modelsRes.data.models || []);
-        setInitStatus(prev => ({ ...prev, models: { done: true, status: 'success', message: `✅ ${modelsRes.data.models?.length || 0} models found` }}));
+        try {
+          const modelsRes = await axios.get(`${apiUrl}/ai/models`); // Removed getConfig() - no auth needed
+          setModels(modelsRes.data.models || []);
+          setInitStatus(prev => ({ ...prev, models: { done: true, status: 'success', message: `✅ ${modelsRes.data.models?.length || 0} models found` }}));
+          
+          // Notify backend that models are ready
+          axios.post(`${apiUrl}/system/update-component-status`, {
+            component: 'models',
+            status: 'success',
+            message: `${modelsRes.data.models?.length || 0} models scanned`
+          }).catch(e => console.log('Failed to update models status:', e));
+        } catch (err) {
+          console.error('Models loading failed:', err);
+          setInitStatus(prev => ({ ...prev, models: { done: true, status: 'error', message: `❌ Failed to load models` }}));
+        }
         
-        // STEP 4: Load GPU info - ⚡ OBAVEZNO PRIJE NASTAVKA!
+        // STEP 4: Load GPU info - ⚡ OBAVEZNO PRIJE NASTAVKA! (No auth needed)
         console.log('🎮 STEP 4: Checking GPU...');
         setInitStatus(prev => ({ ...prev, gpu: { done: false, status: 'loading', message: 'Checking GPU...' }}));
-        const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
-        setGpuInfo(gpuRes.data);
-        const gpuCount = gpuRes.data?.gpus?.length || 0;
-        const gpuName = gpuRes.data?.gpus?.[0]?.name || 'No GPU';
-        setInitStatus(prev => ({ ...prev, gpu: { done: true, status: gpuCount > 0 ? 'success' : 'warning', message: gpuCount > 0 ? `✅ ${gpuName}` : '⚠️ No GPU detected' }}));
+        try {
+          const gpuRes = await axios.get(`${apiUrl}/ai/gpu`); // Removed getConfig() - no auth needed
+          setGpuInfo(gpuRes.data);
+          const gpuCount = gpuRes.data?.gpus?.length || 0;
+          const gpuName = gpuRes.data?.gpus?.[0]?.name || 'No GPU';
+          setInitStatus(prev => ({ ...prev, gpu: { done: true, status: gpuCount > 0 ? 'success' : 'warning', message: gpuCount > 0 ? `✅ ${gpuName}` : '⚠️ No GPU detected' }}));
+          
+          // Notify backend that GPU is ready
+          axios.post(`${apiUrl}/system/update-component-status`, {
+            component: 'gpu',
+            status: gpuCount > 0 ? 'success' : 'warning',
+            message: gpuCount > 0 ? `GPU detected: ${gpuName}` : 'No GPU detected'
+          }).catch(e => console.log('Failed to update GPU status:', e));
+        } catch (err) {
+          console.error('GPU check failed:', err);
+          setInitStatus(prev => ({ ...prev, gpu: { done: true, status: 'error', message: `❌ GPU check failed` }}));
+        }
         
-        // STEP 5: Load settings
+        // STEP 5: Load settings (No auth needed)
         console.log('⚙️ STEP 5: Loading settings...');
         setInitStatus(prev => ({ ...prev, settings: { done: false, status: 'loading', message: 'Loading settings...' }}));
-        const settingsRes = await axios.get(`${apiUrl}/system/settings`);
-        const sysSettings = settingsRes.data || {};
-        setSystemSettings(prev => ({ ...prev, ...sysSettings }));
-        setInitStatus(prev => ({ ...prev, settings: { done: true, status: 'success', message: '✅ Settings loaded' }}));
         
-        // STEP 6: Auto-load model (if enabled)
+        // Get settings from previous step
+        let sysSettings = {};
+        try {
+          const settingsRes = await axios.get(`${apiUrl}/system/settings`);
+          sysSettings = settingsRes.data || {};
+          setSystemSettings(prev => ({ ...prev, ...sysSettings }));
+          setInitStatus(prev => ({ ...prev, settings: { done: true, status: 'success', message: '✅ Settings loaded' }}));
+        } catch (err) {
+          console.error('Settings loading failed:', err);
+          setInitStatus(prev => ({ ...prev, settings: { done: true, status: 'error', message: `❌ Failed to load settings` }}));
+        }
+        
+        // STEP 6: Auto-load model (if enabled and user is logged in)
         console.log('🔄 STEP 6: Checking auto-load...');
         setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: 'Checking auto-load...' }}));
-        if (sysSettings.model_auto_load && sysSettings.auto_load_model_name) {
-          setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: `Loading ${sysSettings.auto_load_model_name}...` }}));
-          try {
-            await axios.post(`${apiUrl}/ai/models/load`, { model_name: sysSettings.auto_load_model_name }, getConfig());
-            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: `✅ Model ${sysSettings.auto_load_model_name} loaded` }}));
-          } catch (err) {
-            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'error', message: `❌ Failed to auto-load model` }}));
+        
+        try {
+          // Check auto-load from server status first (server might have already loaded it)
+          const currentServerStatus = await axios.get(`${apiUrl}/system/server-status`);
+          const autoLoadStatus = currentServerStatus.data?.components?.auto_load;
+          
+          if (autoLoadStatus?.status === 'success') {
+            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: '✅ Auto-load completed by server' }}));
+          } else if (sysSettings.model_auto_load && sysSettings.auto_load_model_name) {
+            // Check if user is logged in (has valid token)
+            const token = localStorage.getItem('token');
+            if (token) {
+              try {
+                setInitStatus(prev => ({ ...prev, autoload: { done: false, status: 'loading', message: `Loading ${sysSettings.auto_load_model_name}...` }}));
+                await axios.post(`${apiUrl}/ai/models/load`, { model_name: sysSettings.auto_load_model_name }, getConfig());
+                setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: `✅ Model ${sysSettings.auto_load_model_name} loaded` }}));
+              } catch (err) {
+                console.error('Auto-load failed:', err);
+                setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'error', message: `❌ Failed to auto-load model` }}));
+              }
+            } else {
+              setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'warning', message: '⚠️ Auto-load skipped (not logged in)' }}));
+            }
+          } else {
+            setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: '✅ Auto-load disabled' }}));
           }
-        } else {
-          setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'success', message: '✅ Auto-load disabled' }}));
+        } catch (err) {
+          console.error('Auto-load check failed:', err);
+          setInitStatus(prev => ({ ...prev, autoload: { done: true, status: 'error', message: '❌ Auto-load check failed' }}));
         }
         
         // Load all other data in background
@@ -353,7 +589,17 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         // ✅ INITIALIZATION COMPLETE!
         console.log('✅ Dashboard initialization COMPLETE!');
         setIsInitialized(true); // ⚡ ENABLE monitoring loops!
-        sessionStorage.setItem('dashboardInitialized', 'true'); // 💾 Mark as initialized for this session!
+        // ⚠️ NE KORISTI sessionStorage - server pamti stanje!
+        
+        // Notify backend that initialization is done (if admin)
+        if (user?.is_admin) {
+          try {
+            await axios.post(`${apiUrl}/system/mark-initialized`, {}, getConfig());
+            console.log('✅ Server marked as fully initialized');
+          } catch (e) {
+            console.warn('Failed to mark server as initialized:', e);
+          }
+        }
         
         // Done! Show dashboard
         setTimeout(() => setLoading(false), 500);
@@ -373,13 +619,28 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       }
     };
     
-    initialize();
+    checkServerStatusAndInitialize();
     
-    // Poll model status every 3 seconds if loading
-    const interval = setInterval(async () => {
-      if (modelLoading) {
+  }, [apiUrl, loadData, loadUserChats, user?.is_admin]);
+
+  // SEPARATE MODEL LOADING POLLING - Fixed race condition
+  useEffect(() => {
+    let interval = null;
+    
+    if (modelLoading) {
+      console.log('🔄 Starting model loading poll...');
+      interval = setInterval(async () => {
         try {
           const res = await axios.get(`${apiUrl}/ai/models/current`, getConfig());
+          const newHash = generateHash(res.data);
+          
+          // 🔍 COMPARE MODEL STATE - Skip if unchanged and not loading/error
+          if (newHash === lastModelHash && res.data.status === 'idle') {
+            console.log('✅ Model state unchanged, skipping poll');
+            return;
+          }
+          setLastModelHash(newHash);
+          
           if (res.data.status === 'loaded') {
             // MODEL JUST FINISHED LOADING - SHOW SUCCESS!
             setModelLoading(false);
@@ -397,7 +658,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
               setModelLoadingLogs([]); // Clear logs after showing alert
             }, 1000);
             
-            loadData(); // Reload all data INCLUDING models list to show "LOADED" status
+            loadData(); // Immediate load - model just loaded successfully
           } else if (res.data.status === 'error') {
             // MODEL LOADING FAILED
             setModelLoading(false);
@@ -430,78 +691,21 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         } catch (e) {
           console.error('Error checking model status:', e);
         }
-      }
-    }, 3000);
+      }, 3000);
+    } else {
+      console.log('🛑 No model loading, stopping poll');
+    }
     
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) {
+        console.log('🧹 Clearing model polling interval');
+        clearInterval(interval);
+      }
+    };
   }, [modelLoading]);
 
-  useEffect(() => {
-    if (user?.is_admin) {
-      loadAdminData();
-    }
-  }, [user]);
-
-  const loadData = async () => {
-    try {
-      // ⚡ PARALLEL LOADING - All requests at once!
-      const [statusRes, modelsRes, gpuRes, currentModelRes, settingsRes, historyRes, sysSettingsRes] = await Promise.all([
-        axios.get(`${apiUrl}/status`).catch(() => ({ data: {} })),
-        axios.get(`${apiUrl}/ai/models`, getConfig()).catch(() => ({ data: { models: [] } })),
-        axios.get(`${apiUrl}/ai/gpu`, getConfig()).catch(() => ({ data: { gpus: [] } })),
-        axios.get(`${apiUrl}/ai/models/current`, getConfig()).catch(() => ({ data: {} })),
-        axios.get(`${apiUrl}/user/settings`, getConfig()).catch(() => ({ data: {} })),
-        axios.get(`${apiUrl}/user/chats`, getConfig()).catch(() => ({ data: [] })),
-        axios.get(`${apiUrl}/system/settings`).catch(() => ({ data: {} }))
-      ]);
-
-      // Update all states
-      setSystemStatus(statusRes.data);
-      setModels(modelsRes.data.models || []);
-      setGpuInfo(gpuRes.data);
-      setCurrentModel(currentModelRes.data);
-      setChatHistory(historyRes.data || []);
-
-      // If model is loading, show loading state BUT DON'T BLOCK UI
-      if (currentModelRes.data?.status === 'loading') {
-        setModelLoading(true);
-        setModelLoadingLogs(['🔄 Model is loading in background...', '⏳ Please wait, this may take 1-2 minutes...']);
-      }
-
-      // Merge settings
-      if (settingsRes.data && Object.keys(settingsRes.data).length > 0) {
-        setSettings(prev => ({ ...prev, ...settingsRes.data }));
-      }
-      if (sysSettingsRes.data && Object.keys(sysSettingsRes.data).length > 0) {
-        setSystemSettings(prev => ({ ...prev, ...sysSettingsRes.data }));
-      }
-
-      console.log('✅ Dashboard data loaded:', {
-        models: modelsRes.data.models?.length,
-        chats: historyRes.data?.length,
-        currentModel: currentModelRes.data?.model_name
-      });
-
-    } catch (err) {
-      console.error('Error loading data:', err);
-    }
-  };
-
-  // ===== LOAD USER'S OWN CHAT HISTORY =====
-  const loadUserChats = async () => {
-    if (!user?.is_admin) {
-      try {
-        const userChatsRes = await axios.get(`${apiUrl}/user/chats`, getConfig());
-        setUserOwnChats(userChatsRes.data || []);
-        console.log('✅ Loaded user own chats:', userChatsRes.data?.length);
-      } catch (err) {
-        console.error('Error loading user chats:', err);
-        setUserOwnChats([]);
-      }
-    }
-  };
-
-  const loadAdminData = async () => {
+  // ===== LOAD ADMIN DATA FUNCTION - MOVED ABOVE useEffect =====
+  const loadAdminData = useCallback(async () => {
     try {
       // Load ALL admin chats for sidebar
       const allChatsRes = await axios.get(`${apiUrl}/admin/chats`, getConfig()).catch(() => ({ data: [] }));
@@ -562,9 +766,15 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     } catch (err) {
       console.error('Error loading admin data:', err);
     }
-  };
+  }, [apiUrl, user?.is_admin]); // Dependencies for useCallback
 
-  const loadDbTables = async () => {
+  useEffect(() => {
+    if (user?.is_admin) {
+      loadAdminData();
+    }
+  }, [user, loadAdminData]);
+
+  const loadDbTables = useCallback(async () => {
     try {
       const tables = {};
       
@@ -591,7 +801,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     } catch (err) {
       console.error('Error loading db tables:', err);
     }
-  };
+  }, [apiUrl]); // Dependencies for useCallback
 
   const loadModel = async () => {
     if (!selectedModel) {
@@ -607,24 +817,6 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       setModelLoadingLogs(prev => [...prev, '🚀 Starting model loading...']);
       setModelLoadingLogs(prev => [...prev, `📦 Model: ${selectedModel}`]);
       setModelLoadingLogs(prev => [...prev, '🔧 Preparing GPU...']);
-      
-      // Poll for GPU changes during loading
-      const gpuPollInterval = setInterval(async () => {
-        try {
-          const gpuRes = await axios.get(`${apiUrl}/ai/gpu`, getConfig());
-          const totalUsed = gpuRes.data.gpus?.reduce((sum, gpu) => sum + gpu.memory_used_mb, 0) || 0;
-          setModelLoadingLogs(prev => {
-            const last = prev[prev.length - 1];
-            const newLog = `💾 GPU VRAM: ${(totalUsed/1024).toFixed(1)} GB`;
-            if (!last || !last.includes('GPU VRAM')) {
-              return [...prev, newLog];
-            }
-            return [...prev.slice(0, -1), newLog];
-          });
-        } catch (e) {
-          // Ignore errors during polling
-        }
-      }, 2000); // Poll every 2 seconds
       
       // Start model loading in background (returns immediately)
       const res = await axios.post(`${apiUrl}/ai/models/load`, { model_name: selectedModel }, getConfig());
@@ -646,6 +838,63 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     // NO FINALLY BLOCK - modelLoading stays true until polling detects "loaded" status
   };
 
+  // 💻 VSCODE WEB INTEGRACIJA - Otvara vscode.dev ili github.dev
+  const openInVSCode = async (projectPath = null) => {
+    try {
+      if (!settings.vscode_auto_open) {
+        alert('⚠️ VSCode auto-open is disabled. Enable it in settings.');
+        return;
+      }
+      
+      // 🌍 Uvijek koristi WEB verziju VSCode-a
+      let vscodeUrl = 'https://vscode.dev';
+      
+      // Ako je GitHub repo, koristi github.dev
+      if (projectPath && projectPath.includes('github.com')) {
+        vscodeUrl = projectPath.replace('github.com', 'github.dev');
+      }
+      
+      // Otvori u novom tabu
+      window.open(vscodeUrl, '_blank');
+      console.log('💻 Opening VSCode Web:', vscodeUrl);
+      alert('🚀 VSCode Web opened in new tab!');
+      
+    } catch (err) {
+      console.error('❌ VSCode integration error:', err);
+      alert('❌ Failed to open VSCode Web: ' + err.message);
+    }
+  };
+
+  // 🧠 PAMETNA WEB SEARCH LOGIKA
+  const shouldActivateWebSearch = (message) => {
+    if (!settings.auto_web_search) return false;
+    
+    // SPECIFIC web search triggers - only for explicit information requests
+    const webSearchTriggers = [
+      'search for', 'find information about', 'look up',
+      'traži informacije o', 'pronađi podatke o', 'pretraži',
+      'latest crypto price', 'current bitcoin price', 'sol price now',
+      'trenutna cijena', 'najnovija cijena kripta', 'bitcoin cijena danas'
+    ];
+    
+    const messageLower = message.toLowerCase();
+    const triggerFound = webSearchTriggers.some(trigger => 
+      messageLower.includes(trigger)
+    );
+    
+    // DISABLED random factor - only trigger on explicit triggers
+    // const randomFactor = Math.random();
+    const shouldTrigger = triggerFound; // No random factor anymore
+    
+    console.log('🌐 Web search analysis:', {
+      triggerFound,
+      threshold: settings.web_search_threshold,
+      shouldTrigger
+    });
+    
+    return shouldTrigger;
+  };
+
   const sendMessage = async (customMsg = null) => {
     const msgToSend = customMsg || message;
     if (!msgToSend.trim() || chatLoading) return;
@@ -655,11 +904,39 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
     
     try {
-      setChatLoading(true);
+      // 🧠 FAZA 1: THINKING - AI prvo razmišlja
+      setThinkingActive(true);
+      setThinkingText('Analiziram pitanje...');
       
-      // 🔍 Check if web search is enabled
-      if (systemSettings.enable_dark_web_search) {
+      // Simuliraj thinking proces (1-3 sekunde)
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setThinkingText('Procjenjujem kontekst i potrebna znanja...');
+      
+      await new Promise(resolve => setTimeout(resolve, 700));
+      setThinkingText('Priprema odgovor...');
+      
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      setChatLoading(true);
+      setThinkingActive(false);
+      
+      // 🔍 PAMETNA WEB SEARCH - aktivira se samo kad treba
+      const needsWebSearch = shouldActivateWebSearch(msgToSend);
+      if (systemSettings.enable_dark_web_search && needsWebSearch) {
         setWebSearchActive(true);
+        setThinkingText('Dodatno znanje potrebno - aktiviram web search...');
+        console.log('🌐 Web Search Active - AI needs additional knowledge');
+      }
+      
+      // 💻 VSCode integracija - ako poruka sadrži projekt zahtjeve
+      const vscodeKeywords = ['create project', 'new project', 'open in vscode', 'stvori projekt', 'novi projekt'];
+      const needsVSCode = vscodeKeywords.some(keyword => 
+        msgToSend.toLowerCase().includes(keyword)
+      );
+      
+      if (needsVSCode && settings.vscode_auto_open) {
+        console.log('💻 Project request detected - preparing VSCode integration');
+        setThinkingText('Priprema VSCode Web integraciju...');
       }
       
       // Get fresh token
@@ -673,10 +950,18 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       console.log('📤 Sending chat request to:', `${apiUrl}/ai/chat`);
       console.log('📤 Token:', token.substring(0, 30) + '...');
       
-      // Prepare request data
+      // Prepare request data with new settings
       const requestData = {
         message: msgToSend.trim(),
-        save_to_history: true
+        save_to_history: true,
+        generate_image: generateImage,
+        settings: {
+          ...settings,
+          deeplearning_active: settings.deeplearning_intensity > 0.5,
+          opinion_mode: settings.opinion_confidence > 0.5,
+          web_search_active: needsWebSearch,
+          vscode_integration: needsVSCode
+        }
       };
       
       // 🌐 Add language forcing if set
@@ -708,10 +993,14 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       console.log('🔍 CHAT RESPONSE:', response.data);
       console.log('🔍 Response message:', response.data.message);
       console.log('🔍 Response response:', response.data.response);
+      console.log('🔍 Response.data KEYS:', Object.keys(response.data || {}));
+      console.log('🔍 Full response object:', JSON.stringify(response.data, null, 2));
       
       // Validacija - mora postojati response!
       if (!response.data.response || response.data.response.trim() === '') {
         console.error('❌ Empty response from AI!');
+        console.error('❌ Response.data.response is:', response.data.response);
+        console.error('❌ Type of response.data.response:', typeof response.data.response);
         alert('❌ AI returned empty response. Try again.');
         setChatLoading(false);
         return;
@@ -730,15 +1019,26 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       
       console.log('📝 NEW CHAT:', newChat);
       console.log('📝 NEW CHAT response field:', newChat.response);
+      console.log('📝 Chat history BEFORE adding:', chatHistory.length);
       
       // Add new chat to END of array so it appears at bottom
-      setChatHistory(prev => [...prev, newChat]);
+      setChatHistory(prev => {
+        const updated = [...prev, newChat];
+        console.log('📝 Chat history AFTER adding:', updated.length);
+        console.log('📝 Last chat in array:', updated[updated.length - 1]);
+        return updated;
+      });
+      
+      console.log('📝 Clearing message input');
       setMessage('');
       setUploadedImage(null); // Clear image after sending
+      setGenerateImage(false); // Reset generate flag
       
-      // Reload admin chats if admin
-      if (user?.is_admin) {
-        loadAdminData();
+      // ❌ NE RELOAD-uj sve chatove - chat je već dodat u chatHistory!
+      // Samo refresh-uj chat history panel ako je potrebno
+      if (!user?.is_admin) {
+        // Za non-admin, refresh user's own chats (sidebar)
+        loadUserChats();
       }
       
       console.log('✅ Chat added to history');
@@ -967,12 +1267,11 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         description: taskDescription
       };
 
-      const response = await axios.post(`${apiUrl}/tasks/create`, taskData, getConfig());
+      await axios.post(`${apiUrl}/tasks/create`, taskData, getConfig());
       alert('✅ Zadatak kreiran uspješno!');
       
       setTaskUrl('');
       setTaskDescription('');
-      setTaskStatus('idle');
       loadTasks();
     } catch (err) {
       console.error('Error creating task:', err);
@@ -1108,15 +1407,13 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       <header className="dashboard-header">
         <div className="header-content">
           <div className="header-left">
-            {/* Hamburger menu za mobitel/tablet */}
-            <div 
-              className={`hamburger-menu ${mobileMenuOpen ? 'open' : ''}`}
+            {/* 🍔 HAMBURGER MENU za mobitel */}
+            <button 
+              className="mobile-menu-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             >
-              <div className="hamburger-line"></div>
-              <div className="hamburger-line"></div>
-              <div className="hamburger-line"></div>
-            </div>
+              {mobileMenuOpen ? '✕' : '☰'}
+            </button>
             <h1>🤖 MasterCoderAI</h1>
             <span className="version-badge">v2.0</span>
           </div>
@@ -1128,44 +1425,106 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         </div>
       </header>
 
+      {/* 📱 MOBILE OVERLAY za zatvaranje sidebar-a */}
+      {mobileMenuOpen && (
+        <div 
+          className="mobile-overlay active" 
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
       <nav className={`dashboard-nav ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        <div className="nav-tabs" onClick={() => setMobileMenuOpen(false)}>
+        <div className="nav-tabs">
           {user?.is_admin && (
-            <button className={activeTab === 'dashboard' ? 'tab active' : 'tab'} onClick={() => setActiveTab('dashboard')}>
+            <button 
+              className={activeTab === 'dashboard' ? 'tab active' : 'tab'} 
+              onClick={() => {
+                setActiveTab('dashboard');
+                setMobileMenuOpen(false); // Zatvori mobilni menu
+              }}
+            >
               📊 Dashboard
             </button>
           )}
-          <button className={activeTab === 'chat' ? 'tab active' : 'tab'} onClick={() => setActiveTab('chat')}>
+          <button 
+            className={activeTab === 'chat' ? 'tab active' : 'tab'} 
+            onClick={() => {
+              setActiveTab('chat');
+              setMobileMenuOpen(false); // Zatvori mobilni menu
+            }}
+          >
             💬 Chat
           </button>
           
           {/* USER SETTINGS TAB - For regular users */}
           {!user?.is_admin && (
-            <button className={activeTab === 'user-settings' ? 'tab active' : 'tab'} onClick={() => setActiveTab('user-settings')}>
+            <button 
+              className={activeTab === 'user-settings' ? 'tab active' : 'tab'} 
+              onClick={() => {
+                setActiveTab('user-settings');
+                setMobileMenuOpen(false);
+              }}
+            >
               ⚙️ Settings
             </button>
           )}
           
           {user?.is_admin && (
             <>
-              <button className={activeTab === 'models' ? 'tab active' : 'tab'} onClick={() => setActiveTab('models')}>
+              <button 
+                className={activeTab === 'models' ? 'tab active' : 'tab'} 
+                onClick={() => {
+                  setActiveTab('models');
+                  setMobileMenuOpen(false);
+                }}
+              >
                 🤖 Models
               </button>
-              <button className={activeTab === 'users' ? 'tab active' : 'tab'} onClick={() => setActiveTab('users')}>
+              <button 
+                className={activeTab === 'users' ? 'tab active' : 'tab'} 
+                onClick={() => {
+                  setActiveTab('users');
+                  setMobileMenuOpen(false);
+                }}
+              >
                 👥 Users
               </button>
-              <button className={activeTab === 'database' ? 'tab active' : 'tab'} onClick={() => setActiveTab('database')}>
+              <button 
+                className={activeTab === 'database' ? 'tab active' : 'tab'} 
+                onClick={() => {
+                  setActiveTab('database');
+                  setMobileMenuOpen(false);
+                }}
+              >
                 🗄️ Database
               </button>
-              <button className={activeTab === 'system' ? 'tab active' : 'tab'} onClick={() => setActiveTab('system')}>
-                ⚙️ System
+              <button 
+                className={activeTab === 'system' ? 'tab active' : 'tab'} 
+                onClick={() => {
+                  setActiveTab('system');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                🖥️ System
               </button>
-              <button className={activeTab === 'tasks' ? 'tab active' : 'tab'} onClick={() => setActiveTab('tasks')}>
-                🤖 Tasks
+              <button 
+                className={activeTab === 'tasks' ? 'tab active' : 'tab'} 
+                onClick={() => {
+                  setActiveTab('tasks');
+                  setMobileMenuOpen(false);
+                }}
+              >
+                📋 Tasks
               </button>
             </>
           )}
-          <button className={activeTab === 'settings' ? 'tab active' : 'tab'} onClick={() => setActiveTab('settings')}>
+          <button 
+            className={activeTab === 'settings' ? 'tab active' : 'tab'} 
+            onClick={() => {
+              setActiveTab('settings');
+              setMobileMenuOpen(false);
+            }}
+          >
             🔧 Settings
           </button>
         </div>
@@ -1512,12 +1871,16 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
               </div>
 
               <div className="chat-messages" ref={chatMessagesRef} style={{maxHeight: '60vh', overflowY: 'auto'}}>
+                {console.log('🎨 RENDERING CHAT HISTORY:', chatHistory.length, 'messages')}
+                {console.log('🎨 FIRST CHAT:', chatHistory[0])}
                 {chatHistory.length === 0 ? (
                   <div className="empty-state">
                     <p>{currentModel?.model_name ? 'Start chatting!' : '⚠️ Load a model first in Models tab'}</p>
                   </div>
                 ) : (
-                  chatHistory.map((chat, idx) => (
+                  chatHistory.map((chat, idx) => {
+                    console.log(`🎨 RENDERING CHAT ${idx}:`, chat);
+                    return (
                     <div key={chat.id || idx} className="message-group">
                       {/* Edit mode for this message */}
                       {editingMessageId === chat.id ? (
@@ -1595,7 +1958,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                         </>
                       )}
                     </div>
-                  ))
+                    ); // Close the return statement
+                  })
                 )}
               </div>
 
@@ -1608,14 +1972,45 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 </div>
               )}
 
-              {/* 🔍 WEB SEARCH ACTIVE INDICATOR */}
+              {/* 🧠 THINKING PHASE INDICATOR - Prikazuje se PRIJE bilo čega */}
+              {thinkingActive && (
+                <div style={{
+                  padding: '15px',
+                  background: 'linear-gradient(135deg, rgba(138, 43, 226, 0.2), rgba(75, 0, 130, 0.3))',
+                  borderRadius: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid rgba(138, 43, 226, 0.5)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  animation: 'pulse 1.5s infinite'
+                }}>
+                  <span style={{fontSize: '1.5rem'}}>🧠</span>
+                  <div style={{flex: 1}}>
+                    <div style={{fontWeight: 'bold', color: '#9b59b6', fontSize: '1rem'}}>AI Thinking...</div>
+                    <div style={{fontSize: '0.85rem', opacity: 0.9, marginTop: '4px'}}>
+                      {thinkingText}
+                    </div>
+                  </div>
+                  <div style={{
+                    width: '35px',
+                    height: '35px',
+                    border: '4px solid rgba(138, 43, 226, 0.3)',
+                    borderTop: '4px solid #9b59b6',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite'
+                  }}></div>
+                </div>
+              )}
+
+              {/* 🔍 WEB SEARCH ACTIVE INDICATOR - NOVI STIL */}
               {webSearchActive && (
                 <div style={{
                   padding: '12px',
-                  background: 'linear-gradient(135deg, rgba(0,123,255,0.2), rgba(0,255,65,0.2))',
+                  background: 'linear-gradient(135deg, rgba(139, 69, 19, 0.2), rgba(101, 42, 3, 0.3))',
                   borderRadius: '8px',
                   marginBottom: '10px',
-                  border: '1px solid rgba(0,255,65,0.5)',
+                  border: '1px solid rgba(139, 69, 19, 0.5)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
@@ -1623,19 +2018,50 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 }}>
                   <span style={{fontSize: '1.2rem'}}>🌐</span>
                   <div style={{flex: 1}}>
-                    <div style={{fontWeight: 'bold', color: '#00ff41'}}>Web Search Active</div>
+                    <div style={{fontWeight: 'bold', color: '#8b4513'}}>Web Search Active</div>
                     <div style={{fontSize: '0.8rem', opacity: 0.8}}>
-                      Searching 100+ pages, analyzing data, preparing best answer...
+                      AI detektovao potrebu za dodatnim znanjem - pretražujem web...
                     </div>
                   </div>
                   <div style={{
                     width: '30px',
                     height: '30px',
-                    border: '3px solid rgba(0,255,65,0.3)',
-                    borderTop: '3px solid #00ff41',
+                    border: '3px solid rgba(139, 69, 19, 0.3)',
+                    borderTop: '3px solid #8b4513',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
+                </div>
+              )}
+
+              {/* 💻 VSCODE INTEGRATION - Quick Actions */}
+              {settings.vscode_auto_open && (
+                <div style={{
+                  padding: '10px',
+                  background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(29, 78, 216, 0.2))',
+                  borderRadius: '8px',
+                  marginBottom: '10px',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <span style={{fontSize: '1.1rem'}}>💻</span>
+                  <div style={{flex: 1, fontSize: '0.8rem', color: '#3b82f6'}}>
+                    VSCode Integration Active - mencijoniraj "create project" ili "novi projekt"
+                  </div>
+                  <button 
+                    onClick={() => openInVSCode()}
+                    className="btn-small"
+                    style={{
+                      background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                      color: 'white',
+                      padding: '5px 10px',
+                      fontSize: '0.7rem'
+                    }}
+                  >
+                    🚀 Open VSCode
+                  </button>
                 </div>
               )}
 
@@ -1683,6 +2109,33 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 )}
               </div>
 
+              {/* IMAGE PREVIEW */}
+              {uploadedImage && (
+                <div style={{
+                  marginBottom: '10px',
+                  padding: '10px',
+                  background: 'rgba(139, 69, 19, 0.15)',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(139, 69, 19, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px'
+                }}>
+                  <img src={uploadedImage} alt="Preview" style={{maxWidth: '100px', maxHeight: '100px', borderRadius: '6px'}} />
+                  <div style={{flex: 1}}>
+                    <div style={{fontWeight: 'bold', color: '#8b4513'}}>📷 Image Uploaded</div>
+                    <div style={{fontSize: '0.8rem', opacity: 0.7}}>AI će analizirati sliku i pročitati tekst</div>
+                  </div>
+                  <button 
+                    onClick={() => setUploadedImage(null)} 
+                    className="btn-small"
+                    style={{background: 'rgba(255,0,0,0.2)', color: '#ff4444'}}
+                  >
+                    ✖
+                  </button>
+                </div>
+              )}
+
               <div className="chat-input-container" style={{display: 'flex', gap: '10px', alignItems: 'center'}}>
                 <input
                   type="file"
@@ -1694,17 +2147,37 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 <button 
                   onClick={() => imageInputRef.current?.click()} 
                   className="btn-small" 
-                  title="Upload Image"
-                  style={{padding: '10px'}}
+                  title="Upload Image for OCR"
+                  style={{padding: '10px', background: uploadedImage ? 'rgba(0,255,65,0.2)' : ''}}
                 >
                   📷
                 </button>
+                <label style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  padding: '5px 10px',
+                  background: generateImage ? 'rgba(138, 43, 226, 0.2)' : 'rgba(255,255,255,0.05)',
+                  borderRadius: '6px',
+                  border: '1px solid ' + (generateImage ? 'rgba(138, 43, 226, 0.5)' : '#444'),
+                  transition: 'all 0.3s'
+                }}>
+                  <input
+                    type="checkbox"
+                    checked={generateImage}
+                    onChange={(e) => setGenerateImage(e.target.checked)}
+                    style={{cursor: 'pointer'}}
+                  />
+                  <span>🎨 Generate Image</span>
+                </label>
                 <input
                   type="text"
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
-                  placeholder={currentModel?.model_name ? "Type your message..." : "Load a model first..."}
+                  placeholder={currentModel?.model_name ? (generateImage ? "Describe image to generate..." : "Type your message...") : "Load a model first..."}
                   disabled={!currentModel?.model_name || chatLoading}
                   className="chat-input"
                   style={{flex: 1}}
@@ -1852,6 +2325,21 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                 </table>
               )}
             </div>
+            
+            {/* 🧠 MODEL CONFIGURATION OPTIONS */}
+            <ModelOptions 
+              modelConfig={modelConfig}
+              onConfigChange={setModelConfig}
+              apiUrl={apiUrl}
+              onModelReload={async () => {
+                // Reload current model
+                if (selectedModel) {
+                  await loadModel();
+                } else {
+                  alert('⚠️ No model selected to reload!');
+                }
+              }}
+            />
           </div>
         )}
 
@@ -2313,24 +2801,12 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
               </div>
             </div>
 
-            {/* BASIC THEME SELECTOR FOR USERS */}
-            <div className="settings-card">
-              <h3>🎨 Tema</h3>
-              <select className="model-select" onChange={(e) => {
-                const themes = {
-                  matrix: { bg: '#0d0d0d', accent: '#00ff41' },
-                  cyberpunk: { bg: '#0a0a0a', accent: '#ff00ff' },
-                  dark: { bg: '#121212', accent: '#bb86fc' }
-                };
-                const t = themes[e.target.value] || themes.matrix;
-                document.documentElement.style.setProperty('--primary-bg', t.bg);
-                document.documentElement.style.setProperty('--accent', t.accent);
-                localStorage.setItem('theme', e.target.value);
-              }}>
-                <option value="matrix">🟢 Matrix (zelena)</option>
-                <option value="cyberpunk">🟣 Cyberpunk (ljubičasta)</option>
-                <option value="dark">🔵 Dark (plava)</option>
-              </select>
+            {/* NAPOMENA: Tema je premještena u glavni Settings tab - nema duplikata! */}
+            <div className="settings-card" style={{background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)'}}>
+              <h3>💡 Napomena</h3>
+              <p style={{fontSize: '0.9rem', lineHeight: 1.6}}>
+                🎨 Za promjenu teme i napredne AI postavke, koristite <strong>Settings</strong> tab u navigaciji.
+              </p>
             </div>
 
             {/* COMING SOON FEATURES */}
@@ -2469,6 +2945,111 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
                   <small style={{opacity: 0.7}}>Kažnjava AI za ponavljanje istih riječi</small>
                   <input type="range" min="1" max="2" step="0.1" value={settings.repeat_penalty} onChange={(e) => setSettings({...settings, repeat_penalty: parseFloat(e.target.value)})} />
                 </label>
+              </div>
+
+              {/* 🧠 DEEPLEARNING SEKCIJA */}
+              <div style={{marginTop: '30px', padding: '20px', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.3)'}}>
+                <h4 style={{color: '#10b981', marginBottom: '15px'}}>🧠 DeepLearning Postavke</h4>
+                
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>⚡ Intenzitet: {settings.deeplearning_intensity} <small>(Jačina analize)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko duboko AI analizira kontekst</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.deeplearning_intensity} onChange={(e) => setSettings({...settings, deeplearning_intensity: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>🎯 Kontekst: {settings.deeplearning_context} <small>(Širina razumijevanja)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko široko AI gleda na problem</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.deeplearning_context} onChange={(e) => setSettings({...settings, deeplearning_context: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>💾 Memorija: {settings.deeplearning_memory} <small>(Pamćenje prethodnih)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko se oslanja na prethodne razgovore</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.deeplearning_memory} onChange={(e) => setSettings({...settings, deeplearning_memory: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+              </div>
+
+              {/* 🎭 OPINION SEKCIJA */}
+              <div style={{marginTop: '20px', padding: '20px', background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(245, 158, 11, 0.3)'}}>
+                <h4 style={{color: '#f59e0b', marginBottom: '15px'}}>🎭 Mišljenje i Procjena</h4>
+                
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>🎯 Samopouzdanje: {settings.opinion_confidence} <small>(Sigurnost odgovora)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko je AI siguran u svoja mišljenja</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.opinion_confidence} onChange={(e) => setSettings({...settings, opinion_confidence: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>🎨 Kreativnost: {settings.opinion_creativity} <small>(Originalnost pristupa)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko kreativno AI pristupa problemima</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.opinion_creativity} onChange={(e) => setSettings({...settings, opinion_creativity: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>🤔 Kritično razmišljanje: {settings.opinion_critical_thinking} <small>(Analitičnost)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko kritički AI evaluira informacije</small>
+                    <input type="range" min="0" max="1" step="0.1" value={settings.opinion_critical_thinking} onChange={(e) => setSettings({...settings, opinion_critical_thinking: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
+              </div>
+
+              {/* 💻 VSCODE INTEGRACIJA */}
+              <div style={{marginTop: '20px', padding: '20px', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(29, 78, 216, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.3)'}}>
+                <h4 style={{color: '#3b82f6', marginBottom: '15px'}}>💻 VSCode Integracija</h4>
+                
+                <div className="setting-item">
+                  <label style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                    <input type="checkbox" checked={settings.vscode_auto_open} onChange={(e) => setSettings({...settings, vscode_auto_open: e.target.checked})} />
+                    <div>🚀 Automatski otvori VSCode za projekte</div>
+                  </label>
+                  <small style={{opacity: 0.7, marginTop: '5px'}}>Chat može direktno pokrenuti VSCode sa svim permisijama</small>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>🔐 VSCode Permisije</div>
+                    <select value={settings.vscode_permissions} onChange={(e) => setSettings({...settings, vscode_permissions: e.target.value})} 
+                            style={{background: 'var(--card-bg)', color: 'var(--text-primary)', border: '1px solid var(--card-border)', borderRadius: '6px', padding: '8px'}}>
+                      <option value="full">🔓 Puna kontrola</option>
+                      <option value="limited">⚠️ Ograničena</option>
+                      <option value="readonly">👁️ Samo čitanje</option>
+                      <option value="new_tab">🌐 Novi tab</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              {/* 🌐 WEB SEARCH LOGIKA */}
+              <div style={{marginTop: '20px', padding: '20px', background: 'linear-gradient(135deg, rgba(139, 69, 19, 0.1) 0%, rgba(101, 42, 3, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(139, 69, 19, 0.3)'}}>
+                <h4 style={{color: '#8b4513', marginBottom: '15px'}}>🌐 Pametna Web Pretraga</h4>
+                
+                <div className="setting-item">
+                  <label style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                    <input type="checkbox" checked={settings.auto_web_search} onChange={(e) => setSettings({...settings, auto_web_search: e.target.checked})} />
+                    <div>🔍 Automatska web pretraga kada treba dodatno znanje</div>
+                  </label>
+                  <small style={{opacity: 0.7, marginTop: '5px'}}>AI će sam odlučiti kada treba ići na internet za više info</small>
+                </div>
+
+                <div className="setting-item">
+                  <label style={{display: 'flex', flexDirection: 'column', gap: '5px'}}>
+                    <div>⚡ Prag za web pretragu: {settings.web_search_threshold} <small>(Osjetljivost)</small></div>
+                    <small style={{opacity: 0.7}}>Koliko lako AI aktivira web pretragu (niže = češće)</small>
+                    <input type="range" min="0.1" max="1" step="0.1" value={settings.web_search_threshold} onChange={(e) => setSettings({...settings, web_search_threshold: parseFloat(e.target.value)})} />
+                  </label>
+                </div>
               </div>
               <button className="btn-action" style={{
                 marginTop: '15px', 
@@ -2782,7 +3363,7 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
           )}
           
           <button
-            onClick={loadSystemHealth}
+            onClick={() => window.location.reload()}
             style={{
               padding: '5px 15px',
               background: 'rgba(0, 255, 65, 0.1)',

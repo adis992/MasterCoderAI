@@ -4,9 +4,10 @@ System Settings API - Admin kontrole
 """
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
 import sys
 import os
+from datetime import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
@@ -15,6 +16,20 @@ from api.models import system_settings
 from api.auth import get_current_user
 
 router = APIRouter(prefix="/system", tags=["system"])
+
+# Global server initialization state
+SERVER_INITIALIZATION_STATE = {
+    "initialized": False,
+    "initialization_time": None,
+    "components": {
+        "database": {"status": "not_started", "timestamp": None},
+        "models": {"status": "not_started", "timestamp": None}, 
+        "gpu": {"status": "not_started", "timestamp": None},
+        "auto_load": {"status": "not_started", "timestamp": None}
+    },
+    "admin_ready": False,  # Admin je pokrenuo sistem i podesio sve
+    "user_access_enabled": False  # Da li korisnici mogu da se loguju
+}
 
 class SystemSettingsUpdate(BaseModel):
     chat_enabled: Optional[bool] = None
@@ -38,6 +53,69 @@ def require_admin(current_user=Depends(get_current_user)):
     if not current_user.get("is_admin"):
         raise HTTPException(status_code=403, detail="Admin required")
     return current_user
+
+@router.get("/server-status")
+async def get_server_initialization_status():
+    """Get server initialization status - PUBLIC endpoint za proveru statusa"""
+    return SERVER_INITIALIZATION_STATE
+
+@router.post("/mark-initialized")
+async def mark_server_initialized(current_user=Depends(require_admin)):
+    """Mark server as fully initialized - ADMIN only"""
+    global SERVER_INITIALIZATION_STATE
+    SERVER_INITIALIZATION_STATE["admin_ready"] = True
+    SERVER_INITIALIZATION_STATE["user_access_enabled"] = True
+    SERVER_INITIALIZATION_STATE["initialized"] = True
+    SERVER_INITIALIZATION_STATE["initialization_time"] = datetime.now().isoformat()
+    
+    return {"status": "success", "message": "Server marked as ready for users"}
+
+@router.post("/reset-initialization")
+async def reset_server_initialization(current_user=Depends(require_admin)):
+    """Reset server initialization status for testing - ADMIN only"""
+    global SERVER_INITIALIZATION_STATE
+    SERVER_INITIALIZATION_STATE.update({
+        "initialized": False,
+        "initialization_time": None,
+        "components": {
+            "database": {"status": "not_started", "timestamp": None},
+            "models": {"status": "not_started", "timestamp": None}, 
+            "gpu": {"status": "not_started", "timestamp": None},
+            "auto_load": {"status": "not_started", "timestamp": None}
+        },
+        "admin_ready": False,
+        "user_access_enabled": False
+    })
+    
+    return {"status": "success", "message": "Server initialization status reset"}
+
+@router.post("/update-component-status")
+async def update_component_status(
+    component: str, 
+    status: str,
+    message: Optional[str] = None
+):
+    """Update status of initialization component - PUBLIC endpoint"""
+    global SERVER_INITIALIZATION_STATE
+    
+    if component in SERVER_INITIALIZATION_STATE["components"]:
+        SERVER_INITIALIZATION_STATE["components"][component] = {
+            "status": status,
+            "timestamp": datetime.now().isoformat(),
+            "message": message
+        }
+        
+        # Check if all components are done
+        all_done = all(
+            comp["status"] in ["success", "error", "warning"] 
+            for comp in SERVER_INITIALIZATION_STATE["components"].values()
+        )
+        
+        if all_done and not SERVER_INITIALIZATION_STATE["initialized"]:
+            SERVER_INITIALIZATION_STATE["initialized"] = True
+            SERVER_INITIALIZATION_STATE["initialization_time"] = datetime.now().isoformat()
+    
+    return {"status": "updated", "component": component}
 
 @router.get("/settings")
 async def get_system_settings():

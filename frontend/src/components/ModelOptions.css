@@ -1,0 +1,421 @@
+/**
+ * 🎨 MODEL OPTIONS STYLING - BRUTALNI CSS 🎨
+ * Stilovi za kompletnu model opcije komponentu
+ */
+
+.model-options {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 16px;
+  padding: 20px;
+  margin: 20px 0;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.options-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.header-info h3 {
+  color: #fff;
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.header-info p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0 0 12px 0;
+  font-size: 0.9rem;
+}
+
+.stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.stat {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.expand-toggle {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.expand-toggle:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+}
+
+.options-content {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 24px;
+  backdrop-filter: blur(10px);
+}
+
+.tab-controls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 16px;
+}
+
+.tab-button {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.7);
+  padding: 10px 20px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.tab-button:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.tab-button.active {
+  background: linear-gradient(135deg, #ff6b6b, #feca57);
+  color: #fff;
+  border-color: transparent;
+  transform: scale(1.05);
+}
+
+.capabilities-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.category-section {
+  margin-bottom: 32px;
+}
+
+.future-section {
+  opacity: 0.85;
+}
+
+.category-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.category-capabilities {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 16px;
+}
+
+.capability-card {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(5px);
+}
+
+.capability-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.capability-card.enabled {
+  background: linear-gradient(135deg, rgba(46, 213, 115, 0.1), rgba(0, 184, 148, 0.1));
+  border-color: rgba(46, 213, 115, 0.3);
+}
+
+.capability-card.disabled {
+  background: rgba(255, 255, 255, 0.03);
+  opacity: 0.6;
+}
+
+.capability-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.capability-info {
+  display: flex;
+  gap: 12px;
+  flex: 1;
+}
+
+.category-icon {
+  font-size: 1.5rem;
+  margin-top: 4px;
+}
+
+.capability-text h4 {
+  color: #fff;
+  margin: 0 0 8px 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.capability-text p {
+  color: rgba(255, 255, 255, 0.8);
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.eta-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #ff9a56, #ffad56);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-top: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.capability-toggle {
+  position: relative;
+  display: inline-block;
+  width: 56px;
+  height: 28px;
+  flex-shrink: 0;
+}
+
+.capability-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 28px;
+  transition: all 0.3s ease;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 22px;
+  width: 22px;
+  left: 2px;
+  bottom: 2px;
+  background: #fff;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.capability-toggle input:checked + .toggle-slider {
+  background: linear-gradient(135deg, #2ed573, #00b894);
+  border-color: #2ed573;
+}
+
+.capability-toggle input:checked + .toggle-slider:before {
+  transform: translateX(28px);
+}
+
+.capability-settings {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.capability-settings h5 {
+  color: #fff;
+  margin: 0 0 16px 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.setting-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.setting-item label {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-transform: capitalize;
+}
+
+.setting-item input {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  min-width: 80px;
+  font-size: 0.85rem;
+}
+
+.setting-item input:focus {
+  outline: none;
+  border-color: #2ed573;
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.setting-item input[type="checkbox"] {
+  min-width: auto;
+  width: 18px;
+  height: 18px;
+  accent-color: #2ed573;
+}
+
+.options-footer {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 2px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.save-button {
+  background: linear-gradient(135deg, #2ed573, #00b894);
+  color: #fff;
+  border: none;
+  padding: 14px 32px;
+  border-radius: 25px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(46, 213, 115, 0.3);
+  margin-bottom: 16px;
+}
+
+.save-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(46, 213, 115, 0.4);
+  background: linear-gradient(135deg, #00b894, #2ed573);
+}
+
+.save-button:active {
+  transform: translateY(0);
+}
+
+.footer-info {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.8rem;
+  line-height: 1.5;
+}
+
+.footer-info p {
+  margin: 4px 0;
+}
+
+/* 📱 RESPONSIVE DESIGN */
+@media (max-width: 768px) {
+  .model-options {
+    margin: 10px;
+    padding: 16px;
+  }
+  
+  .options-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .stats {
+    gap: 8px;
+  }
+  
+  .category-capabilities {
+    grid-template-columns: 1fr;
+  }
+  
+  .capability-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  
+  .tab-controls {
+    flex-direction: column;
+    gap: 8px;
+  }
+  
+  .tab-button {
+    text-align: left;
+  }
+}
+
+/* 🌙 DARK THEME ENHANCEMENTS */
+@media (prefers-color-scheme: dark) {
+  .model-options {
+    background: linear-gradient(135deg, #2c3e50 0%, #4a6741 100%);
+  }
+  
+  .capability-card.enabled {
+    background: linear-gradient(135deg, rgba(46, 213, 115, 0.15), rgba(0, 184, 148, 0.15));
+  }
+}
+
+/* ✨ ANIMATIONS */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.options-content {
+  animation: slideIn 0.4s ease-out;
+}
+
+.capability-card {
+  animation: slideIn 0.3s ease-out;
+}
+
+.capability-card:nth-child(1) { animation-delay: 0.05s; }
+.capability-card:nth-child(2) { animation-delay: 0.1s; }
+.capability-card:nth-child(3) { animation-delay: 0.15s; }
+.capability-card:nth-child(4) { animation-delay: 0.2s; }
+.capability-card:nth-child(5) { animation-delay: 0.25s; }
+.capability-card:nth-child(6) { animation-delay: 0.3s; }

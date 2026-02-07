@@ -9,15 +9,20 @@ export default function Login({ onLogin, apiUrl }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('🔐 LOGIN ATTEMPT:', { username, password, apiUrl });
     setLoading(true);
     setError('');
     
     try {
+      console.log('🔐 Sending login request to:', `${apiUrl}/auth/login`);
       const response = await axios.post(`${apiUrl}/auth/login`, {
         username,
         password
+      }, {
+        timeout: 10000 // 10 second timeout
       });
       
+      console.log('🔐 Login response:', response.data);
       const token = response.data.access_token;
       
       // TEST: Decode token to verify it has 'id' field
@@ -43,9 +48,14 @@ export default function Login({ onLogin, apiUrl }) {
         console.error('❌ Failed to decode token:', decodeError);
       }
       
+      console.log('🔐 Calling onLogin with token...');
       onLogin(token);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Login failed');
+      console.error('🔐 LOGIN ERROR:', err);
+      console.error('🔐 Error response:', err.response?.data);
+      console.error('🔐 Error status:', err.response?.status);
+      console.error('🔐 Error details:', err.response?.data?.detail);
+      setError(err.response?.data?.detail || err.message || 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -105,7 +115,7 @@ export default function Login({ onLogin, apiUrl }) {
           </form>
 
           <div className="mt-6 text-center text-white/70 text-sm">
-            <p>Default: <span className="font-mono font-bold">admin / admin</span></p>
+            <p>Default: <span className="font-mono font-bold">admin / admin123</span></p>
           </div>
         </div>
       </div>

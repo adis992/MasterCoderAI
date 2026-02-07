@@ -52,6 +52,7 @@ def verify_token(token: str):
 async def login(request: LoginRequest):
     from db.database import database
     from api.models import users
+    from api.system import SERVER_INITIALIZATION_STATE
     
     # Get user from database
     query = users.select().where(users.c.username == request.username)
@@ -59,6 +60,14 @@ async def login(request: LoginRequest):
     
     if not user or not check_password_hash(user["hashed_password"], request.password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
+    
+    # Check if user is admin or if server is ready for regular users
+    if not user["is_admin"]:
+        if not SERVER_INITIALIZATION_STATE.get("user_access_enabled", False):
+            raise HTTPException(
+                status_code=503, 
+                detail="System is still initializing. Please wait for admin to complete setup. Try again in a few minutes."
+            )
     
     token = create_access_token({
         "sub": user["username"],

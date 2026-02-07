@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 import sys
 import os
 from pathlib import Path
+from datetime import datetime
 
 # Fix imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -18,6 +19,7 @@ from api.user import router as user_router
 from api.ai import router as ai_router
 from api.system import router as system_router
 from api.tasks import router as tasks_router
+from agents.agents_api import router as agents_router  # 🤖 AGENT SYSTEM
 from db.database import database
 
 app = FastAPI(title="MasterCoderAI API", version="2.0.0")
@@ -37,6 +39,14 @@ async def startup():
     await database.connect()
     print("✅ Database connected")
     
+    # Mark database as initialized
+    from api.system import SERVER_INITIALIZATION_STATE
+    SERVER_INITIALIZATION_STATE["components"]["database"] = {
+        "status": "success",
+        "timestamp": datetime.now().isoformat(),
+        "message": "Database connected"
+    }
+    
     # AUTO-LOAD MODEL if enabled in settings
     try:
         from api.models import system_settings
@@ -53,13 +63,37 @@ async def startup():
             
             model_path = Path(f"/root/MasterCoderAI/modeli/{model_name}")
             if model_path.exists():
+                # Mark auto-load as started
+                SERVER_INITIALIZATION_STATE["components"]["auto_load"] = {
+                    "status": "loading",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": f"Loading {model_name}..."
+                }
+                
                 # Load model in background
                 import asyncio
                 asyncio.create_task(ai.auto_load_model_on_startup(model_name))
             else:
                 print(f"⚠️ AUTO-LOAD model {model_name} not found!")
+                SERVER_INITIALIZATION_STATE["components"]["auto_load"] = {
+                    "status": "error",
+                    "timestamp": datetime.now().isoformat(),
+                    "message": f"Model {model_name} not found"
+                }
+        else:
+            # No auto-load
+            SERVER_INITIALIZATION_STATE["components"]["auto_load"] = {
+                "status": "success",
+                "timestamp": datetime.now().isoformat(),
+                "message": "Auto-load disabled"
+            }
     except Exception as e:
         print(f"⚠️ AUTO-LOAD error: {e}")
+        SERVER_INITIALIZATION_STATE["components"]["auto_load"] = {
+            "status": "error",
+            "timestamp": datetime.now().isoformat(),
+            "message": f"Auto-load error: {str(e)}"
+        }
 
 @app.on_event("shutdown")
 async def shutdown():
@@ -73,6 +107,7 @@ app.include_router(user_router)
 app.include_router(ai_router)
 app.include_router(system_router)
 app.include_router(tasks_router)
+app.include_router(agents_router)  # 🤖 BRUTALNI AGENT SYSTEM
 
 @app.get("/api/status")
 async def api_status():

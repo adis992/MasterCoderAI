@@ -24,7 +24,8 @@ body {
   background: var(--dark-bg);
   color: var(--text-primary);
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  line-height: 1.6;
+  font-size: 70%; /* Smanjujem za 30% - bilo je previše glomazno */
+  line-height: 1.4;
 }
 
 /* LOADING SCREEN */
@@ -92,11 +93,140 @@ body {
 }
 
 .header-left h1 {
-  font-size: clamp(1.5rem, 3vw, 2rem);
+  font-size: clamp(1rem, 2.1vw, 1.4rem); /* Smanjeno za 30% */
   background: var(--primary-gradient);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* HAMBURGER MENU */
+.mobile-menu-btn {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  transition: background 0.3s;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--card-bg);
+}
+
+/* RESPONSIVE DESIGN */
+@media (max-width: 1200px) {
+  body {
+    font-size: 65%; /* Srednji ekrani - malo manji fontovi */
+  }
+  
+  .header-content {
+    padding: 0 1rem;
+  }
+  
+  .chat-input, .model-select {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-btn {
+    display: block;
+  }
+  
+  .dashboard-nav {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 280px;
+    height: 100vh;
+    background: var(--dark-bg);
+    transition: left 0.3s ease;
+    z-index: 1000;
+    padding-top: 4rem;
+    border-right: 1px solid var(--card-border);
+    backdrop-filter: blur(20px);
+  }
+  
+  .dashboard-nav.mobile-open {
+    left: 0;
+    box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
+  }
+  
+  body {
+    font-size: 60%; /* Još manji font na mobilnom */
+  }
+  
+  .header-content {
+    padding: 0 0.5rem;
+  }
+  
+  .header-left h1 {
+    font-size: 1rem;
+  }
+  
+  /* Sidebar overlay */
+  .mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 999;
+    display: none;
+    backdrop-filter: blur(5px);
+  }
+  
+  .mobile-overlay.active {
+    display: block;
+  }
+  
+  /* Navigation tabs u sidebar-u */
+  .nav-tabs {
+    flex-direction: column;
+    padding: 2rem 1rem;
+    gap: 1rem;
+  }
+  
+  .tab {
+    width: 100%;
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.9rem;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  body {
+    font-size: 55%; /* Najmanji fontovi za male ekrane */
+  }
+  
+  .header-left h1 {
+    font-size: 0.9rem;
+  }
+  
+  .dashboard-nav {
+    width: 250px; /* Manji sidebar za male ekrane */
+  }
+  
+  .version-badge, .admin-badge {
+    font-size: 0.5rem;
+    padding: 0.2rem 0.5rem;
+  }
+  
+  .btn-logout {
+    font-size: 0.7rem;
+    padding: 0.4rem 0.8rem;
+  }
+  
+  .user-info {
+    font-size: 0.7rem;
+  }
 }
 
 .version-badge {
