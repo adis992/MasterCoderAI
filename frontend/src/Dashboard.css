@@ -1544,3 +1544,23 @@ body {
     opacity: 0.5;
   }
 }
+/* MOBILE RESPONSIVE FOR SYSTEM STATUS PANEL */
+@media (max-width: 768px) {
+  .mobile-hide-text {
+    display: none !important;
+  }
+  
+  .mobile-show-text {
+    display: inline !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-hide-text {
+    display: inline !important;
+  }
+  
+  .mobile-show-text {
+    display: none !important;
+  }
+}

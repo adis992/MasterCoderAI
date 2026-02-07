@@ -3241,19 +3241,37 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
         right: 0,
         background: 'rgba(0, 0, 0, 0.95)',
         borderTop: '2px solid rgba(0, 255, 65, 0.3)',
-        padding: '10px 20px',
+        padding: window.innerWidth < 480 ? '8px 10px' : '10px 20px',
         display: 'flex',
-        alignItems: 'center',
+        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+        alignItems: window.innerWidth < 768 ? 'stretch' : 'center',
         justifyContent: 'space-between',
-        gap: '15px',
-        fontSize: '0.85rem',
+        gap: window.innerWidth < 480 ? '8px' : '15px',
+        fontSize: 'clamp(0.7rem, 2vw, 0.85rem)',
         zIndex: 1000,
-        flexWrap: 'wrap'
+        flexWrap: 'wrap',
+        gap: '10px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '10px', 
+          flexWrap: 'wrap',
+          width: '100%'
+        }}>
           {/* Database Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 'bold', opacity: 0.7 }}>💾 Database:</span>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+            minWidth: '140px',
+            flex: '1 1 auto'
+          }}>
+            <span style={{ 
+              fontWeight: 'bold', 
+              opacity: 0.7,
+              fontSize: 'clamp(0.75rem, 2vw, 0.9rem)'
+            }}>💾</span>
             {systemHealth ? (
               <span style={{
                 color: systemHealth.database.status === 'ok' ? '#00ff41' : 
@@ -3261,101 +3279,188 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
                 fontWeight: 'bold',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px'
+                gap: '5px',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
               }}>
                 <span style={{
                   display: 'inline-block',
-                  width: '8px',
-                  height: '8px',
+                  width: '6px',
+                  height: '6px',
                   borderRadius: '50%',
                   background: systemHealth.database.status === 'ok' ? '#00ff41' : 
                              systemHealth.database.status === 'warning' ? '#ffaa00' : '#ff0040',
-                  animation: 'pulse 2s infinite'
+                  animation: 'pulse 2s infinite',
+                  flexShrink: 0
                 }}></span>
-                {systemHealth.database.message}
+                <span style={{ 
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis'
+                }}>
+                  {systemHealth.database.message}
+                </span>
               </span>
             ) : (
-              <span style={{ color: '#999' }}>Loading...</span>
+              <span style={{ 
+                color: '#999',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
+              }}>...</span>
             )}
           </div>
 
           {/* Backend Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 'bold', opacity: 0.7 }}>⚡ Backend:</span>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+            minWidth: '100px',
+            flex: '0 1 auto'
+          }}>
+            <span style={{ 
+              fontWeight: 'bold', 
+              opacity: 0.7,
+              fontSize: 'clamp(0.75rem, 2vw, 0.9rem)'
+            }}>⚡</span>
             {systemHealth ? (
               <span style={{
                 color: systemHealth.backend.status === 'ok' ? '#00ff41' : '#ff0040',
                 fontWeight: 'bold',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '5px'
+                gap: '5px',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
               }}>
                 <span style={{
                   display: 'inline-block',
-                  width: '8px',
-                  height: '8px',
+                  width: '6px',
+                  height: '6px',
                   borderRadius: '50%',
                   background: systemHealth.backend.status === 'ok' ? '#00ff41' : '#ff0040',
-                  animation: 'pulse 2s infinite'
+                  animation: 'pulse 2s infinite',
+                  flexShrink: 0
                 }}></span>
-                {systemHealth.backend.message}
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  {systemHealth.backend.message}
+                </span>
               </span>
             ) : (
-              <span style={{ color: '#999' }}>Loading...</span>
+              <span style={{ 
+                color: '#999',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
+              }}>...</span>
             )}
           </div>
 
           {/* Models Status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 'bold', opacity: 0.7 }}>🤖 Models:</span>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '6px',
+            minWidth: '120px',
+            flex: '1 1 auto'
+          }}>
+            <span style={{ 
+              fontWeight: 'bold', 
+              opacity: 0.7,
+              fontSize: 'clamp(0.75rem, 2vw, 0.9rem)'
+            }}>🤖</span>
             {systemHealth?.models_folder ? (
               <span style={{
                 color: systemHealth.models_folder.status === 'ok' ? '#00ff41' : 
                        systemHealth.models_folder.status === 'warning' ? '#ffaa00' : '#ff0040',
-                fontWeight: 'bold'
+                fontWeight: 'bold',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}>
                 {systemHealth.models_folder.message}
               </span>
             ) : (
-              <span style={{ color: '#999' }}>Loading...</span>
+              <span style={{ 
+                color: '#999',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
+              }}>...</span>
             )}
           </div>
 
-          {/* Current Model Status */}
+          {/* Current Model Status - Hide on very small screens */}
           {currentModel?.model_name && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontWeight: 'bold', opacity: 0.7 }}>🎯 Loaded:</span>
-              <span style={{ color: '#00ff41', fontWeight: 'bold' }}>
-                {currentModel.model_name}
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              flex: '1 1 auto',
+              minWidth: '150px'
+            }}>
+              <span style={{ 
+                fontWeight: 'bold', 
+                opacity: 0.7,
+                fontSize: 'clamp(0.75rem, 2vw, 0.9rem)',
+                display: window.innerWidth < 480 ? 'none' : 'inline'
+              }}>🎯</span>
+              <span style={{ 
+                color: '#00ff41', 
+                fontWeight: 'bold',
+                fontSize: 'clamp(0.7rem, 2vw, 0.85rem)',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
+                {window.innerWidth < 768 
+                  ? currentModel.model_name.split('.')[0].substring(0, 20) + '...'
+                  : currentModel.model_name
+                }
               </span>
             </div>
           )}
 
-          {/* Dashboard Load Time */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontWeight: 'bold', opacity: 0.7 }}>⚡ Dashboard:</span>
-            <span style={{ color: '#00ff41', fontWeight: 'bold' }}>
-              Live ⚡
+          {/* Dashboard Live Indicator - Compact on mobile */}
+          <div style={{ 
+            display: window.innerWidth < 480 ? 'none' : 'flex',
+            alignItems: 'center', 
+            gap: '6px',
+            flex: '0 0 auto'
+          }}>
+            <span style={{ 
+              fontWeight: 'bold', 
+              opacity: 0.7,
+              fontSize: 'clamp(0.75rem, 2vw, 0.9rem)'
+            }}>⚡</span>
+            <span style={{ 
+              color: '#00ff41', 
+              fontWeight: 'bold',
+              fontSize: 'clamp(0.7rem, 2vw, 0.85rem)'
+            }}>
+              Live
             </span>
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Action Buttons - Stack on mobile */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          flexWrap: 'wrap',
+          width: window.innerWidth < 768 ? '100%' : 'auto',
+          justifyContent: window.innerWidth < 768 ? 'center' : 'flex-end'
+        }}>
           {systemHealth?.init_required && user?.is_admin && (
             <button
               onClick={initializeDatabase}
               disabled={healthLoading}
               style={{
-                padding: '5px 15px',
+                padding: window.innerWidth < 480 ? '6px 12px' : '5px 15px',
                 background: 'linear-gradient(135deg, #ff0040, #ff6600)',
                 border: 'none',
                 borderRadius: '5px',
                 color: 'white',
                 fontWeight: 'bold',
                 cursor: healthLoading ? 'not-allowed' : 'pointer',
-                fontSize: '0.8rem',
-                opacity: healthLoading ? 0.5 : 1
+                fontSize: 'clamp(0.7rem, 2vw, 0.8rem)',
+                opacity: healthLoading ? 0.5 : 1,
+                whiteSpace: 'nowrap'
               }}
             >
               {healthLoading ? '⏳ Initializing...' : '🔧 Initialize Database'}
