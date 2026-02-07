@@ -30,6 +30,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [currentModel, setCurrentModel] = useState(null);
   // ⚠️ NE KORISTI sessionStorage - server odlučuje o inicijalizaciji!
   const [loading, setLoading] = useState(true); // Uvek učitava prvi put
+  const [hasShownInit, setHasShownInit] = useState(false); // Track if we already showed initialization
+  const [alreadyInitializedServer, setAlreadyInitializedServer] = useState(false); // 📌 Server vec initialized?
   const [chatHistory, setChatHistory] = useState(() => {
     // Load from localStorage
     if (savedChats) {
@@ -100,6 +102,8 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const [modelLoading, setModelLoading] = useState(false);
   const [modelLoadingLogs, setModelLoadingLogs] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false); // 📱 Hamburger za chat history
+  const [systemStatusOpen, setSystemStatusOpen] = useState(false); // 📱 Hamburger za system status
   
   // 🧠 CACHING STATE - Sprečava nepotrebne API pozive
   const [lastGpuHash, setLastGpuHash] = useState('');
@@ -411,6 +415,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         console.log('🔍 STEP 0: Checking server initialization status...');
         const serverStatusRes = await axios.get(`${apiUrl}/system/server-status`);
         const serverStatus = serverStatusRes.data;
+        setAlreadyInitializedServer(serverStatus.initialized); // 📌 Track if server was already initialized
         
         console.log('Server status:', serverStatus);
         
@@ -589,6 +594,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         // ✅ INITIALIZATION COMPLETE!
         console.log('✅ Dashboard initialization COMPLETE!');
         setIsInitialized(true); // ⚡ ENABLE monitoring loops!
+        setHasShownInit(true); // ✅ Mark that we showed init screen
         // ⚠️ NE KORISTI sessionStorage - server pamti stanje!
         
         // Notify backend that initialization is done (if admin)
@@ -601,8 +607,9 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
           }
         }
         
-        // Done! Show dashboard
-        setTimeout(() => setLoading(false), 500);
+        // Done! Show dashboard - BRZ SKIP AKO JE VEĆ INITIALIZED
+        const skipDelay = alreadyInitializedServer ? 100 : 500;
+        setTimeout(() => setLoading(false), skipDelay);
         
       } catch (err) {
         console.error('Initialization error:', err);
@@ -1329,7 +1336,7 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     }
   };
 
-  if (loading) {
+  if (loading && !alreadyInitializedServer) { // ✅ NE PRIKAZUJ AKO JE VEĆ INITIALIZED
     const totalSteps = Object.keys(initStatus).length;
     const completedSteps = Object.values(initStatus).filter(s => s.done).length;
     const progress = (completedSteps / totalSteps) * 100;
@@ -1628,6 +1635,22 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
         {/* CHAT TAB */}
         {activeTab === 'chat' && (
           <div className="tab-content">
+            {/* 📱 HAMBURGER BUTTON ZA CHAT HISTORY (SAMO MOBILE) */}
+            {(user?.is_admin || userOwnChats.length > 0) && (
+              <button 
+                className="mobile-hamburger-btn"
+                onClick={() => setChatHistoryOpen(!chatHistoryOpen)}
+                style={{display: 'none'}}
+              >
+                📜 {chatHistoryOpen ? '✖' : `History (${user?.is_admin ? allUserChats.length : userOwnChats.length})`}
+              </button>
+            )}
+            
+            {/* 📱 OVERLAY za zatvaranje sidebar-a */}
+            {chatHistoryOpen && (
+              <div className="mobile-overlay" onClick={() => setChatHistoryOpen(false)}></div>
+            )}
+            
             {/* REGULAR USER FEATURES */}
             {!user?.is_admin && (
               <div style={{marginBottom: '20px', padding: '15px', background: 'rgba(0,255,65,0.1)', borderRadius: '10px', border: '1px solid rgba(0,255,65,0.3)'}}>
@@ -1665,11 +1688,18 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
               </div>
             )}
             
-            <div style={{display: 'grid', gridTemplateColumns: user?.is_admin ? '250px 1fr' : (userOwnChats.length > 0 ? '220px 1fr' : '1fr'), gap: '20px', height: '100%'}}>
+            <div style={{
+              display: 'grid', 
+              gridTemplateColumns: user?.is_admin ? '250px 1fr' : (userOwnChats.length > 0 ? '220px 1fr' : '1fr'), 
+              gap: '20px', 
+              height: '100%'
+            }} className="chat-layout-grid">
               
               {/* 📜 CHAT HISTORY SIDEBAR */}
               {(user?.is_admin || userOwnChats.length > 0) && (
-                <div style={{
+                <div 
+                  className={`chat-history-sidebar ${chatHistoryOpen ? 'mobile-chat-history open' : ''}`}
+                  style={{
                   background: 'rgba(0,0,0,0.3)',
                   borderRadius: '12px',
                   padding: '15px',
@@ -3233,29 +3263,69 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
         )}
       </main>
 
-      {/* 🔧 SYSTEM HEALTH STATUS PANEL - Fixed at bottom */}
-      <div style={{
+      {/* 📱 OVERLAY za zatvaranje system status */}
+      {systemStatusOpen && (
+        <div className="mobile-overlay" onClick={() => setSystemStatusOpen(false)}></div>
+      )}
+
+      {/* � MOBILE SYSTEM STATUS BUTTON */}
+      <button 
+        className="mobile-system-status-btn"
+        onClick={() => setSystemStatusOpen(!systemStatusOpen)}
+        style={{display: window.innerWidth < 768 ? 'flex' : 'none'}}
+      >
+        ⚙️ System
+      </button>
+
+      {/* 🔧 SYSTEM HEALTH STATUS PANEL */}
+      <div className={systemStatusOpen ? 'mobile-system-status open' : ''} style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: window.innerWidth < 768 ? '-100%' : 0,
         left: 0,
         right: 0,
         background: 'rgba(0, 0, 0, 0.95)',
         borderTop: '2px solid rgba(0, 255, 65, 0.3)',
-        padding: window.innerWidth < 480 ? '8px 10px' : '10px 20px',
-        display: 'flex',
-        flexDirection: window.innerWidth < 768 ? 'column' : 'row',
-        alignItems: window.innerWidth < 768 ? 'stretch' : 'center',
-        justifyContent: 'space-between',
-        gap: window.innerWidth < 480 ? '8px' : '15px',
+        padding: window.innerWidth < 480 ? '15px' : '10px 20px',
+        display: window.innerWidth < 768 ? (systemStatusOpen ? 'flex' : 'none') : 'flex',
+        flexDirection: 'column',
+        gap: '15px',
         fontSize: 'clamp(0.7rem, 2vw, 0.85rem)',
-        zIndex: 1000,
-        flexWrap: 'wrap',
-        gap: '10px'
+        zIndex: window.innerWidth < 768 ? 1001 : 1000,
+        maxHeight: window.innerWidth < 768 ? '60%' : 'auto',
+        overflowY: 'auto',
+        borderTopLeftRadius: window.innerWidth < 768 ? '20px' : 0,
+        borderTopRightRadius: window.innerWidth < 768 ? '20px' : 0
       }}>
+        {/* Header za mobile */}
+        {window.innerWidth < 768 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            paddingBottom: '10px',
+            borderBottom: '1px solid rgba(0, 255, 65, 0.2)'
+          }}>
+            <h3 style={{margin: 0, color: '#00ff41'}}>⚙️ System Status</h3>
+            <button 
+              onClick={() => setSystemStatusOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                color: '#ff0040',
+                fontSize: '1.5rem',
+                cursor: 'pointer'
+              }}
+            >
+              ✖
+            </button>
+          </div>
+        )}
+
         <div style={{ 
           display: 'flex', 
-          alignItems: 'center', 
-          gap: '10px', 
+          flexDirection: window.innerWidth < 768 ? 'column' : 'row',
+          alignItems: window.innerWidth < 768 ? 'stretch' : 'center', 
+          gap: window.innerWidth < 768 ? '15px' : '10px', 
           flexWrap: 'wrap',
           width: '100%'
         }}>

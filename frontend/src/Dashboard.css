@@ -1280,7 +1280,7 @@ body {
   }
 
   .chat-container {
-    height: calc(100vh - 300px);
+    height: calc(100vh - 200px) !important;
   }
 
   .chat-messages {
@@ -1288,7 +1288,95 @@ body {
   }
 
   .message {
-    max-width: 90%;
+    max-width: 95%;
+    padding: 0.8rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  /* 📱 HAMBURGER MENUS NA MOBILE */
+  .mobile-hamburger-btn {
+    position: fixed;
+    top: 70px;
+    left: 10px;
+    z-index: 1000;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .mobile-system-status-btn {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    z-index: 1000;
+    background: linear-gradient(135deg, #00ff41, #00cc33);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 15px;
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    font-weight: bold;
+  }
+  
+  /* OVERLAY ZA ZATVARA NJE MENIJA */
+  .mobile-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 999;
+    backdrop-filter: blur(5px);
+  }
+  
+  /* CHAT HISTORY SIDEBAR NA MOBILE */
+  .mobile-chat-history {
+    position: fixed;
+    top: 0;
+    left: -100%;
+    width: 80%;
+    max-width: 300px;
+    height: 100%;
+    background: #16213e;
+    z-index: 1001;
+    transition: left 0.3s ease;
+    overflow-y: auto;
+    box-shadow: 4px 0 20px rgba(0,0,0,0.5);
+  }
+  
+  .mobile-chat-history.open {
+    left: 0;
+  }
+  
+  /* SYSTEM STATUS PANEL NA MOBILE */
+  .mobile-system-status {
+    position: fixed;
+    bottom: -100%;
+    left: 0;
+    width: 100%;
+    max-height: 60%;
+    background: #16213e;
+    z-index: 1001;
+    transition: bottom 0.3s ease;
+    overflow-y: auto;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+  }
+  
+  .mobile-system-status.open {
+    bottom: 0;
   }
 
   .stats-grid {
@@ -1340,6 +1428,23 @@ body {
   .action-btn {
     font-size: 0.75rem;
     padding: 0.4rem 0.8rem;
+  }
+  
+  /* SAKRIJ SIDEBAR NA MOBILE - BICE HAMBURGER */
+  .chat-layout-grid {
+    grid-template-columns: 1fr !important;
+  }
+  
+  .chat-history-sidebar {
+    display: none !important;
+  }
+  
+  .mobile-hamburger-btn {
+    display: flex !important;
+  }
+  
+  .mobile-system-status-btn {
+    display: flex !important;
   }
 }
 
