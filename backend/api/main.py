@@ -19,6 +19,7 @@ from api.user import router as user_router
 from api.ai import router as ai_router
 from api.system import router as system_router
 from api.tasks import router as tasks_router
+from api.integrations import router as integrations_router  # 🟣 VIBER & IPTV
 from agents.agents_api import router as agents_router  # 🤖 AGENT SYSTEM
 from db.database import database
 
@@ -107,6 +108,7 @@ app.include_router(user_router)
 app.include_router(ai_router)
 app.include_router(system_router)
 app.include_router(tasks_router)
+app.include_router(integrations_router)  # 🟣 VIBER & IPTV INTEGRATION
 app.include_router(agents_router)  # 🤖 BRUTALNI AGENT SYSTEM
 
 @app.get("/api/status")

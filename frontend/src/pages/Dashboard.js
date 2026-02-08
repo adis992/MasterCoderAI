@@ -3213,6 +3213,186 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
               </div>
             </div>
 
+            {/* 🟣 VIBER & IPTV INTEGRATIONS */}
+            <div className="settings-card">
+              <h3>🟣 Viber & IPTV Integration</h3>
+              <p style={{fontSize: '0.9rem', opacity: 0.8, marginBottom: '15px'}}>
+                Integriraj Viber messaging i Xtream UI Panel za automatsku podršku IPTV korisnicima
+              </p>
+              
+              <div style={{display: 'grid', gap: '15px'}}>
+                {/* VIBER CONFIG */}
+                <div style={{padding: '15px', background: 'rgba(147, 51, 234, 0.1)', borderRadius: '8px', border: '1px solid rgba(147, 51, 234, 0.3)'}}>
+                  <h4 style={{marginBottom: '10px', color: '#9333ea'}}>🟣 Viber Configuration</h4>
+                  
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    <input 
+                      type="text"
+                      placeholder="Viber API Key"
+                      id="viberApiKey"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    <input 
+                      type="text"
+                      placeholder="Bot Name (opciono)"
+                      id="viberBotName"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    <input 
+                      type="url"
+                      placeholder="Webhook URL (opciono)"
+                      id="viberWebhook"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    
+                    <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+                      <button 
+                        className="btn-primary"
+                        onClick={async () => {
+                          const apiKey = document.getElementById('viberApiKey').value;
+                          const botName = document.getElementById('viberBotName').value;
+                          const webhook = document.getElementById('viberWebhook').value;
+                          
+                          if (!apiKey) {
+                            alert('⚠️ Unesite Viber API Key!');
+                            return;
+                          }
+                          
+                          try {
+                            const res = await axios.post(`${apiUrl}/integrations/viber/configure`, {
+                              api_key: apiKey,
+                              bot_name: botName || 'IPTV Support Bot',
+                              webhook_url: webhook || null
+                            }, getConfig());
+                            
+                            alert(`✅ ${res.data.message}\\n\\nVerifikacija: ${res.data.verification.message}`);
+                          } catch (err) {
+                            alert(`❌ Greška: ${err.response?.data?.detail || err.message}`);
+                          }
+                        }}
+                        style={{flex: 1, background: 'linear-gradient(135deg, #9333ea, #7e22ce)'}}
+                      >
+                        💾 Save & Test
+                      </button>
+                      
+                      <button 
+                        className="btn-action"
+                        onClick={async () => {
+                          try {
+                            const res = await axios.get(`${apiUrl}/integrations/viber/status`, getConfig());
+                            alert(`Status: ${res.data.status}\\nEnabled: ${res.data.enabled}\\n\\n${JSON.stringify(res.data.connection || {}, null, 2)}`);
+                          } catch (err) {
+                            alert(`❌ Greška: ${err.message}`);
+                          }
+                        }}
+                        style={{background: 'rgba(147, 51, 234, 0.2)', border: '1px solid #9333ea'}}
+                      >
+                        📊 Status
+                      </button>
+                      
+                      <button 
+                        className="btn-action"
+                        onClick={() => window.open('/viber-messages', '_blank')}
+                        style={{background: 'rgba(147, 51, 234, 0.2)', border: '1px solid #9333ea'}}
+                      >
+                        📜 Messages
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* IPTV CONFIG */}
+                <div style={{padding: '15px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '8px', border: '1px solid rgba(239, 68, 68, 0.3)'}}>
+                  <h4 style={{marginBottom: '10px', color: '#ef4444'}}>📺 Xtream UI Panel</h4>
+                  
+                  <div style={{display: 'flex', flexDirection: 'column', gap: '10px'}}>
+                    <input 
+                      type="url"
+                      placeholder="Panel URL (http://panel.com:8080)"
+                      id="iptvPanelUrl"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    <input 
+                      type="text"
+                      placeholder="Admin Username"
+                      id="iptvUsername"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    <input 
+                      type="password"
+                      placeholder="Admin Password"
+                      id="iptvPassword"
+                      className="chat-input"
+                      style={{width: '100%'}}
+                    />
+                    
+                    <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
+                      <button 
+                        className="btn-primary"
+                        onClick={async () => {
+                          const panelUrl = document.getElementById('iptvPanelUrl').value;
+                          const username = document.getElementById('iptvUsername').value;
+                          const password = document.getElementById('iptvPassword').value;
+                          
+                          if (!panelUrl || !username || !password) {
+                            alert('⚠️ Popunite sva polja!');
+                            return;
+                          }
+                          
+                          try {
+                            const res = await axios.post(`${apiUrl}/integrations/iptv/configure`, {
+                              panel_url: panelUrl,
+                              username: username,
+                              password: password
+                            }, getConfig());
+                            
+                            alert(`✅ ${res.data.message}\\n\\nVerifikacija: ${res.data.verification.message}`);
+                          } catch (err) {
+                            alert(`❌ Greška: ${err.response?.data?.detail || err.message}`);
+                          }
+                        }}
+                        style={{flex: 1, background: 'linear-gradient(135deg, #ef4444, #dc2626)'}}
+                      >
+                        💾 Save & Test
+                      </button>
+                      
+                      <button 
+                        className="btn-action"
+                        onClick={async () => {
+                          try {
+                            const res = await axios.get(`${apiUrl}/integrations/iptv/status`, getConfig());
+                            alert(`Status: ${res.data.status}\\nEnabled: ${res.data.enabled}\\n\\n${JSON.stringify(res.data.connection || {}, null, 2)}`);
+                          } catch (err) {
+                            alert(`❌ Greška: ${err.message}`);
+                          }
+                        }}
+                        style={{background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444'}}
+                      >
+                        📊 Status
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* INFO */}
+                <div style={{padding: '12px', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.3)', fontSize: '0.85rem'}}>
+                  <strong style={{color: '#3b82f6'}}>ℹ️ Kako radi:</strong>
+                  <ul style={{marginTop: '8px', marginLeft: '20px', lineHeight: '1.8'}}>
+                    <li>Viber prima poruke od IPTV korisnika</li>
+                    <li>AI automatski odgovara na pitanja (lista kanala, troubleshooting, itd.)</li>
+                    <li>Admin može vidjeti sve poruke i ručno odgovoriti</li>
+                    <li>IPTV panel provjerava status korisnika, expire date, aktivne kanale</li>
+                    <li>Automatski notifikuje korisnike kad istekne pretplata</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
             <div className="settings-card">
               <h3>⚡ Quick Actions</h3>
               <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px'}}>
