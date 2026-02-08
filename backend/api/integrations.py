@@ -7,11 +7,16 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict
 import sqlite3
 import logging
+import sys
+import os
 
-from ..db.database import get_db
-from ..dependencies import get_current_user
-from ..agents.viber_agent import get_viber_agent
-from ..agents.iptv_agent import get_iptv_agent
+# Fix imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+
+from db.database import get_db
+from api.auth import get_current_user
+from agents.viber_agent import get_viber_agent
+from agents.iptv_agent import get_iptv_agent
 
 router = APIRouter(prefix="/integrations", tags=["integrations"])
 logger = logging.getLogger(__name__)
