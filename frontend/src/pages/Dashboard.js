@@ -136,6 +136,19 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
     agentPreferences: {}
   });
   
+  // 🟣 VIBER & IPTV STATE
+  const [viberConfig, setViberConfig] = useState({
+    api_key: '',
+    bot_name: '',
+    webhook_url: ''
+  });
+  const [iptvConfig, setIptvConfig] = useState({
+    panel_url: '',
+    username: '',
+    password: ''
+  });
+  const [viberMessages, setViberMessages] = useState([]);
+  
   const chatMessagesRef = React.useRef(null);
   const imageInputRef = React.useRef(null);
 
@@ -175,14 +188,16 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
   const loadData = useCallback(async () => {
     try {
       // ⚡ PARALLEL LOADING - All requests at once!
-      const [modelsRes, gpuRes, currentModelRes, settingsRes, historyRes, sysSettingsRes, modelConfigRes] = await Promise.all([
+      const [modelsRes, gpuRes, currentModelRes, settingsRes, historyRes, sysSettingsRes, modelConfigRes, viberRes, iptvRes] = await Promise.all([
         axios.get(`${apiUrl}/ai/models`, getConfig()).catch(() => ({ data: { models: [] } })),
         axios.get(`${apiUrl}/ai/gpu`, getConfig()).catch(() => ({ data: { gpus: [] } })),
         axios.get(`${apiUrl}/ai/models/current`, getConfig()).catch(() => ({ data: {} })),
         axios.get(`${apiUrl}/user/settings`, getConfig()).catch(() => ({ data: {} })),
         axios.get(`${apiUrl}/user/chats`, getConfig()).catch(() => ({ data: [] })),
         axios.get(`${apiUrl}/system/settings`).catch(() => ({ data: {} })),
-        axios.get(`${apiUrl}/user/model-config`, getConfig()).catch(() => ({ data: { config: {} } }))
+        axios.get(`${apiUrl}/user/model-config`, getConfig()).catch(() => ({ data: { config: {} } })),
+        axios.get(`${apiUrl}/integrations/viber/status`, getConfig()).catch(() => ({ data: { config: {} } })),
+        axios.get(`${apiUrl}/integrations/iptv/status`, getConfig()).catch(() => ({ data: { config: {} } }))
       ]);
 
       // 🔍 CHECK IF DATA CHANGED - Create combined hash
@@ -231,12 +246,30 @@ export default function Dashboard({ user, onLogout, apiUrl }) {
       if (modelConfigRes.data?.config) {
         setModelConfig(modelConfigRes.data.config);
       }
+      
+      // 🟣 Load Viber & IPTV configurations
+      if (viberRes.data?.config) {
+        setViberConfig({
+          api_key: viberRes.data.config.api_key || '',
+          bot_name: viberRes.data.config.bot_name || '',
+          webhook_url: viberRes.data.config.webhook_url || ''
+        });
+      }
+      if (iptvRes.data?.config) {
+        setIptvConfig({
+          panel_url: iptvRes.data.config.panel_url || '',
+          username: iptvRes.data.config.username || '',
+          password: '***' // Ne prikazuj password
+        });
+      }
 
       console.log('✅ Dashboard data loaded:', {
         models: modelsRes.data.models?.length,
         chats: historyRes.data?.length,
         currentModel: currentModelRes.data?.model_name,
-        modelConfig: modelConfigRes.data?.config ? 'loaded' : 'default'
+        modelConfig: modelConfigRes.data?.config ? 'loaded' : 'default',
+        viberEnabled: viberRes.data?.enabled || false,
+        iptvEnabled: iptvRes.data?.enabled || false
       });
 
     } catch (err) {
@@ -3229,51 +3262,50 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
                     <input 
                       type="text"
                       placeholder="Viber API Key"
-                      id="viberApiKey"
+                      value={viberConfig.api_key}
+                      onChange={(e) => setViberConfig({...viberConfig, api_key: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     <input 
                       type="text"
                       placeholder="Bot Name (opciono)"
-                      id="viberBotName"
+                      value={viberConfig.bot_name}
+                      onChange={(e) => setViberConfig({...viberConfig, bot_name: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     <input 
                       type="url"
                       placeholder="Webhook URL (opciono)"
-                      id="viberWebhook"
+                      value={viberConfig.webhook_url}
+                      onChange={(e) => setViberConfig({...viberConfig, webhook_url: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     
                     <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
                       <button 
                         className="btn-primary"
                         onClick={async () => {
-                          const apiKey = document.getElementById('viberApiKey').value;
-                          const botName = document.getElementById('viberBotName').value;
-                          const webhook = document.getElementById('viberWebhook').value;
-                          
-                          if (!apiKey) {
+                          if (!viberConfig.api_key) {
                             alert('⚠️ Unesite Viber API Key!');
                             return;
                           }
                           
                           try {
                             const res = await axios.post(`${apiUrl}/integrations/viber/configure`, {
-                              api_key: apiKey,
-                              bot_name: botName || 'IPTV Support Bot',
-                              webhook_url: webhook || null
+                              api_key: viberConfig.api_key,
+                              bot_name: viberConfig.bot_name || 'IPTV Support Bot',
+                              webhook_url: viberConfig.webhook_url || null
                             }, getConfig());
                             
-                            alert(`✅ ${res.data.message}\\n\\nVerifikacija: ${res.data.verification.message}`);
+                            alert(`✅ ${res.data.message}\n\nVerifikacija: ${res.data.verification.message}`);
                           } catch (err) {
                             alert(`❌ Greška: ${err.response?.data?.detail || err.message}`);
                           }
                         }}
-                        style={{flex: 1, background: 'linear-gradient(135deg, #9333ea, #7e22ce)'}}
+                        style={{flex: 1, background: 'linear-gradient(135deg, #9333ea, #7e22ce)', padding: '12px', fontSize: '0.95rem'}}
                       >
                         💾 Save & Test
                       </button>
@@ -3295,8 +3327,16 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
                       
                       <button 
                         className="btn-action"
-                        onClick={() => window.open('/viber-messages', '_blank')}
-                        style={{background: 'rgba(147, 51, 234, 0.2)', border: '1px solid #9333ea'}}
+                        onClick={async () => {
+                          try {
+                            const res = await axios.get(`${apiUrl}/integrations/viber/messages`, getConfig());
+                            setViberMessages(res.data.messages || []);
+                            alert(`📜 Viber Messages (${res.data.messages?.length || 0}):\n\n${res.data.messages?.slice(0, 5).map(m => `${m.receiver_id}: ${m.message}`).join('\n') || 'Nema poruka'}`);
+                          } catch (err) {
+                            alert(`❌ Greška: ${err.message}`);
+                          }
+                        }}
+                        style={{background: 'rgba(147, 51, 234, 0.2)', border: '1px solid #9333ea', padding: '12px', fontSize: '0.95rem'}}
                       >
                         📜 Messages
                       </button>
@@ -3312,51 +3352,50 @@ LANGUAGE RULES: Respond in the same language as the user's question (English or 
                     <input 
                       type="url"
                       placeholder="Panel URL (http://panel.com:8080)"
-                      id="iptvPanelUrl"
+                      value={iptvConfig.panel_url}
+                      onChange={(e) => setIptvConfig({...iptvConfig, panel_url: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     <input 
                       type="text"
                       placeholder="Admin Username"
-                      id="iptvUsername"
+                      value={iptvConfig.username}
+                      onChange={(e) => setIptvConfig({...iptvConfig, username: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     <input 
                       type="password"
                       placeholder="Admin Password"
-                      id="iptvPassword"
+                      value={iptvConfig.password}
+                      onChange={(e) => setIptvConfig({...iptvConfig, password: e.target.value})}
                       className="chat-input"
-                      style={{width: '100%'}}
+                      style={{width: '100%', padding: '12px', fontSize: '0.95rem'}}
                     />
                     
                     <div style={{display: 'flex', gap: '10px', marginTop: '10px'}}>
                       <button 
                         className="btn-primary"
                         onClick={async () => {
-                          const panelUrl = document.getElementById('iptvPanelUrl').value;
-                          const username = document.getElementById('iptvUsername').value;
-                          const password = document.getElementById('iptvPassword').value;
-                          
-                          if (!panelUrl || !username || !password) {
+                          if (!iptvConfig.panel_url || !iptvConfig.username || !iptvConfig.password) {
                             alert('⚠️ Popunite sva polja!');
                             return;
                           }
                           
                           try {
                             const res = await axios.post(`${apiUrl}/integrations/iptv/configure`, {
-                              panel_url: panelUrl,
-                              username: username,
-                              password: password
+                              panel_url: iptvConfig.panel_url,
+                              username: iptvConfig.username,
+                              password: iptvConfig.password
                             }, getConfig());
                             
-                            alert(`✅ ${res.data.message}\\n\\nVerifikacija: ${res.data.verification.message}`);
+                            alert(`✅ ${res.data.message}\n\nVerifikacija: ${res.data.verification.message}`);
                           } catch (err) {
                             alert(`❌ Greška: ${err.response?.data?.detail || err.message}`);
                           }
                         }}
-                        style={{flex: 1, background: 'linear-gradient(135deg, #ef4444, #dc2626)'}}
+                        style={{flex: 1, background: 'linear-gradient(135deg, #ef4444, #dc2626)', padding: '12px', fontSize: '0.95rem'}}
                       >
                         💾 Save & Test
                       </button>
